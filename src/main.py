@@ -1,6 +1,14 @@
-# -*- coding:UTF-8 -*-
+# # -*- coding:UTF-8 -*-
+# import os
+# import sys
+# import numpy
+# sys.path.append('/home/gene/PythonC/build')
+# print(os.getcwd())
+# import data_pb2 as pb
+
 
 if __name__ == "__main__":
+    print(sys.version)
     print(os.getcwd())
 
     # 创建一个 Message 对象

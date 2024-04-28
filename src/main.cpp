@@ -17,7 +17,7 @@ int main() {
     PyRun_SimpleString("import os");
     PyRun_SimpleString("import sys");
     PyRun_SimpleString("import numpy");
-    PyRun_SimpleString("sys.path.append('/home/gene/project/pythonC/build')");
+    PyRun_SimpleString("sys.path.append('/home/gene/PythonC/build')");
     PyRun_SimpleString("import data_pb2 as pb");
     // PyImport_ImportModule("os");
     // PyImport_ImportModule("sys");
