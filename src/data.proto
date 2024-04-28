@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+message ArrayInt64 {
+    repeated int64 data = 1;
+}
+message ArrayUint64 {
+    repeated uint64 data = 1;
+}
+message ArrayDouble {
+    repeated double data = 1;
+}
+message ArrayString {
+    repeated string data = 1;
+}
+message ArrayValue {
+    repeated context_value data = 1;
+}
+message MapString {
+    map<string, context_value> data = 1;
+}
+
+message context_value {
+    oneof value_type {
+        bool bool = 1;
+        float float = 2;
+        double double = 3;
+        uint32 uint32 = 4;
+        uint64 uint64 = 5;
+        int32 int32 = 6;
+        int64 int64 = 7;
+        sint32 sint32 = 8;
+        sint64 sint64 = 9;
+        fixed32 fixed32 = 10;
+        fixed64 fixed64 = 11;
+        sfixed32 sfixed32 = 12;
+        sfixed64 sfixed64 = 13;
+        string string = 14;
+        bytes bytes = 15;
+        ArrayInt64 array_int64 = 16;
+        ArrayUint64 array_uint64 = 17;
+        ArrayDouble array_double = 18;
+        ArrayString array_string = 19;
+        ArrayValue array_value = 20;
+        MapString map_string = 21;
+    }
+}
+message MatchRuleReq {
+    map<string, context_value> context_map = 1;  // 用户的特征
+}
+
+
+
+
+
+
+
+
+
