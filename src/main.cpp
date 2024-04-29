@@ -2,6 +2,32 @@
 #include <bits/stdc++.h>
 
 #include "dbg_utili.hpp"
+
+int call(int x, int y) { return x + y; }
+
+static PyObject *adds(PyObject *self, PyObject *args) {
+    int a, b;
+
+    /* Parse arguments */
+    if (!PyArg_ParseTuple(args, "ii", &a, &b)) {
+        return NULL;
+    }
+
+    int sum = a + b;
+
+    return PyLong_FromLong(sum);
+}
+
+static PyMethodDef addsMethods[] = {
+    {"adds", adds, METH_VARARGS, "Python interface for C APB Problem"},
+    {NULL, NULL, 0, NULL}};
+
+static struct PyModuleDef addsModule = {PyModuleDef_HEAD_INIT, "adds",
+                                        "Python interface for C APB Problem",
+                                        -1, addsMethods};
+
+PyMODINIT_FUNC PyInit_adds(void) { return PyModule_Create(&addsModule); }
+
 int main() {
     // Python 脚本内容
     std::string script;
@@ -11,17 +37,7 @@ int main() {
     std::cout << script << std::endl;
 
     Py_Initialize();
-    // PyRun_SimpleString(
-    //     "import os, sys, numpy, data_pb2 as "
-    //     "pb");
-    PyRun_SimpleString("import os");
-    PyRun_SimpleString("import sys");
-    PyRun_SimpleString("import numpy");
-    PyRun_SimpleString("sys.path.append('/home/gene/PythonC/build')");
-    PyRun_SimpleString("import data_pb2 as pb");
-    // PyImport_ImportModule("os");
-    // PyImport_ImportModule("sys");
-    // PyImport_ImportModule("data_pb2");
+
     // 执行Python代码
     PyRun_SimpleString(script.c_str());
 

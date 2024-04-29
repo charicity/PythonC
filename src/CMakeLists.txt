@@ -37,8 +37,10 @@ target_link_libraries(pb_spawn ${Python_LIBRARIES})
 
 add_custom_target(python 
     COMMAND cp -f ../src/*.py ./
+    COMMAND cp -f ../src/*.so ./
 )
 
 add_custom_target(cleanpy 
     COMMAND rm -f ./*.py
+    COMMAND rm -f ./*.so
 )
