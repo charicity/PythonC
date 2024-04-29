@@ -5,33 +5,39 @@
 
 // python3 setup.py build_ext --inplace
 
-int call(int x, int y) { return x + y; }
+// 全局整型变量
+int shared_variable = 10;
 
-int c = 0;
-
-static PyObject *adds(PyObject *self, PyObject *args) {
-    int a, b;
-
-    /* Parse arguments */
-    if (!PyArg_ParseTuple(args, "ii", &a, &b)) {
-        return NULL;
-    }
-
-    int sum = a + b;
-    c = sum;
-
-    return PyLong_FromLong(sum);
+// 函数：获取全局整型变量的值
+static PyObject* get_shared_variable(PyObject* self, PyObject* args) {
+    return Py_BuildValue("i", shared_variable);
 }
 
-static PyMethodDef addsMethods[] = {
-    {"adds", adds, METH_VARARGS, "Python interface for C APB Problem"},
-    {NULL, NULL, 0, NULL}};
+// 函数：设置全局整型变量的值
+static PyObject* set_shared_variable(PyObject* self, PyObject* args) {
+    int new_value;
+    if (!PyArg_ParseTuple(args, "i", &new_value)) {
+        return NULL;
+    }
+    shared_variable = new_value;
+    Py_RETURN_NONE;
+}
 
-static struct PyModuleDef addsModule = {PyModuleDef_HEAD_INIT, "adds",
-                                        "Python interface for C APB Problem",
-                                        -1, addsMethods};
+// 定义模块方法
+static PyMethodDef myModuleMethods[] = {
+    {"get_shared_variable", get_shared_variable, METH_NOARGS,
+     "Get shared variable value"},
+    {"set_shared_variable", set_shared_variable, METH_VARARGS,
+     "Set shared variable value"},
+    {NULL, NULL, 0, NULL}  // 结束标志
+};
 
-PyMODINIT_FUNC PyInit_adds(void) { return PyModule_Create(&addsModule); }
+// 模块定义
+static struct PyModuleDef myModule = {PyModuleDef_HEAD_INIT, "mymodule", NULL,
+                                      -1, myModuleMethods};
+
+// 模块初始化函数
+PyMODINIT_FUNC PyInit_mymodule(void) { return PyModule_Create(&myModule); }
 
 int main() {
     // Python 脚本内容
@@ -41,8 +47,10 @@ int main() {
     std::cout << "the script" << std::endl;
     std::cout << script << std::endl;
 
+    std::cout << shared_variable << std::endl;
+
+    PyImport_AppendInittab("mymodule", &PyInit_mymodule);  // 增加一个模块
     Py_Initialize();
-    std::cout << c << std::endl;
 
     // 执行Python代码
     PyRun_SimpleString(script.c_str());
@@ -50,7 +58,7 @@ int main() {
     // 释放Python解释器
     Py_Finalize();
 
-    std::cout << c << std::endl;
+    std::cout << shared_variable << std::endl;
 
     return 0;
 }

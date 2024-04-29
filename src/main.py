@@ -4,23 +4,17 @@ import sys
 import numpy
 sys.path.append('.')
 import data_pb2 as pb
-import adds as ads
+import mymodule
 
 
 if __name__ == "__main__":
-    a=1
-    b=2
-    c=ads.adds(a,b)
-    print('c=',c)
-    # print(sys.version)
-    # print(os.getcwd())
+    # 获取共享变量的值
+    value = mymodule.get_shared_variable()
+    print("Python: Shared variable =", value)
 
-    # # 创建一个 Message 对象
-    # message = pb.ArrayInt64()
+    # 修改共享变量的值
+    mymodule.set_shared_variable(20)
 
-    # # 使用 ParseFromString 方法从字符串中解析 Protobuf 数据
-    # with open("output.txt", "rb") as f:
-    #     message.ParseFromString(f.read())
-    
-    # for data in message.data:
-    #     print(data)
+    # 再次获取共享变量的值，确认是否修改成功
+    value = mymodule.get_shared_variable()
+    print("Python: Modified shared variable =", value)

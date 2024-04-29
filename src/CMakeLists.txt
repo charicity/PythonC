@@ -37,7 +37,6 @@ target_link_libraries(pb_spawn ${Python_LIBRARIES})
 
 add_custom_target(python 
     COMMAND cp -f ../src/*.py ./
-    COMMAND cp -f ../src/adds.cpython-310-x86_64-linux-gnu.so ./adds.so
 )
 
 add_custom_target(cleanpy 
