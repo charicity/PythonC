@@ -7,7 +7,10 @@ import data_pb2 as pb
 import mymodule
 import binascii
 
+
 if __name__ == "__main__":
+    print('Running script 1')
+    
     val = mymodule.get_shared_variable("useless")
     # print('exit safely')
     print('type of val=',type(val))

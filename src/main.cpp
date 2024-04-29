@@ -62,17 +62,31 @@ PyMODINIT_FUNC PyInit_mymodule(void) { return PyModule_Create(&myModule); }
 
 int main() {
     // Python 脚本内容
-    std::string script;
-    load_file(script, std::string("./main.py"));
+    std::string script1;
+    load_file(script1, std::string("./main1.py"));
 
-    // 初始化
-    PyImport_AppendInittab("mymodule", &PyInit_mymodule);
-    Py_Initialize();
+    std::string script2;
+    load_file(script2, std::string("./main2.py"));
+
+    std::string script3;
+    load_file(script3, std::string("./main3.py"));
+
+    std::string clean;
+    load_file(clean, std::string("./clean.py"));
 
     // 执行Python代码
-    PyRun_SimpleString(script.c_str());
+    // run_statement_in_module()
+    PyImport_AppendInittab("mymodule", &PyInit_mymodule);
 
-    // 结束时释放
+    Py_Initialize();
+
+    PyRun_SimpleString(script3.c_str());
+    PyRun_SimpleString(clean.c_str());
+    PyRun_SimpleString(script2.c_str());
+    PyRun_SimpleString(clean.c_str());
+    PyRun_SimpleString(script2.c_str());
+    PyRun_SimpleString(clean.c_str());
+
     Py_Finalize();
 
     return 0;
