@@ -3,7 +3,11 @@
 
 #include "dbg_utili.hpp"
 
+// python3 setup.py build_ext --inplace
+
 int call(int x, int y) { return x + y; }
+
+int c = 0;
 
 static PyObject *adds(PyObject *self, PyObject *args) {
     int a, b;
@@ -14,6 +18,7 @@ static PyObject *adds(PyObject *self, PyObject *args) {
     }
 
     int sum = a + b;
+    c = sum;
 
     return PyLong_FromLong(sum);
 }
@@ -37,12 +42,15 @@ int main() {
     std::cout << script << std::endl;
 
     Py_Initialize();
+    std::cout << c << std::endl;
 
     // 执行Python代码
     PyRun_SimpleString(script.c_str());
 
     // 释放Python解释器
     Py_Finalize();
+
+    std::cout << c << std::endl;
 
     return 0;
 }

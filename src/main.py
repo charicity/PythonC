@@ -2,8 +2,7 @@
 import os
 import sys
 import numpy
-sys.path.append('/home/gene/PythonC/build')
-print(os.getcwd())
+sys.path.append('.')
 import data_pb2 as pb
 import adds as ads
 
@@ -12,6 +11,7 @@ if __name__ == "__main__":
     a=1
     b=2
     c=ads.adds(a,b)
+    print('c=',c)
     # print(sys.version)
     # print(os.getcwd())
 
