@@ -5,16 +5,34 @@ import numpy
 sys.path.append('.')
 import data_pb2 as pb
 import mymodule
-
+import binascii
 
 if __name__ == "__main__":
-    # 获取共享变量的值
-    value = mymodule.get_shared_variable()
-    print("Python: Shared variable =", value)
+    val = mymodule.get_shared_variable("useless")
+    # print('exit safely')
+    print('type of val=',type(val))
+    # print(val)
 
-    # 修改共享变量的值
-    mymodule.set_shared_variable(20)
+    # byte_data = val.encode()
+    # print('type of byte_data=',type(byte_data))
 
-    # 再次获取共享变量的值，确认是否修改成功
-    value = mymodule.get_shared_variable()
-    print("Python: Modified shared variable =", value)
+    message = pb.context_value()
+    # with open("output.txt", "rb") as f:
+    #     message.ParseFromString(f.read())
+
+    print('len=',len(val))
+
+    message.ParseFromString(val)
+
+    if message.HasField('bool'):
+        print("Data type: bool")
+    elif message.HasField('float'):
+        print("Data type: float")
+    elif message.HasField('double'):
+        print("Data type: double")
+    elif message.HasField('string'):
+        print('Data type: string')
+    elif message.HasField('uint32'):
+        print('Data type: uint32')
+    else:
+        print('Data type: other')

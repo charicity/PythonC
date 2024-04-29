@@ -1,38 +1,59 @@
+#define PY_SSIZE_T_CLEAN
 #include <Python.h>
-#include <bits/stdc++.h>
 
+#include <cstdio>
+#include <cstring>
+#include <iostream>
+
+#include "data.pb.h"
 #include "dbg_utili.hpp"
 
-// python3 setup.py build_ext --inplace
+// 全局变量
+std::map<std::string, int> shared_variable;
 
-// 全局整型变量
-int shared_variable = 10;
-
-// 函数：获取全局整型变量的值
+// 获取全局变量的值
 static PyObject* get_shared_variable(PyObject* self, PyObject* args) {
-    return Py_BuildValue("i", shared_variable);
-}
-
-// 函数：设置全局整型变量的值
-static PyObject* set_shared_variable(PyObject* self, PyObject* args) {
-    int new_value;
-    if (!PyArg_ParseTuple(args, "i", &new_value)) {
+    const char* str;
+    if (!PyArg_ParseTuple(args, "s", &str)) {
         return NULL;
     }
-    shared_variable = new_value;
+    printf("request_name: (TBD) [GET] '%s'=(TBD)\n", str);
+    // std::string s = convertToStdString(str);
+
+    context_value a;
+
+    a.set_uint32(10);
+
+    std::string msg;
+    a.SerializeToString(&msg);
+
+    return Py_BuildValue("y#", msg.c_str(), msg.length());  // dangerous
+}
+
+// 设置全局变量的值
+static PyObject* set_shared_variable(PyObject* self, PyObject* args) {
+    int new_value;
+    const char* str;
+
+    if (!PyArg_ParseTuple(args, "si", &str, &new_value)) {
+        return NULL;
+    }
+
+    std::string s = convertToStdString(str);
+
+    shared_variable[s] = new_value;
     Py_RETURN_NONE;
 }
 
-// 定义模块方法
+// 定义方法
 static PyMethodDef myModuleMethods[] = {
-    {"get_shared_variable", get_shared_variable, METH_NOARGS,
+    {"get_shared_variable", get_shared_variable, METH_VARARGS,
      "Get shared variable value"},
     {"set_shared_variable", set_shared_variable, METH_VARARGS,
      "Set shared variable value"},
-    {NULL, NULL, 0, NULL}  // 结束标志
-};
+    {NULL, NULL, 0, NULL}};
 
-// 模块定义
+// 定义模块
 static struct PyModuleDef myModule = {PyModuleDef_HEAD_INIT, "mymodule", NULL,
                                       -1, myModuleMethods};
 
@@ -44,21 +65,15 @@ int main() {
     std::string script;
     load_file(script, std::string("./main.py"));
 
-    std::cout << "the script" << std::endl;
-    std::cout << script << std::endl;
-
-    std::cout << shared_variable << std::endl;
-
-    PyImport_AppendInittab("mymodule", &PyInit_mymodule);  // 增加一个模块
+    // 初始化
+    PyImport_AppendInittab("mymodule", &PyInit_mymodule);
     Py_Initialize();
 
     // 执行Python代码
     PyRun_SimpleString(script.c_str());
 
-    // 释放Python解释器
+    // 结束时释放
     Py_Finalize();
-
-    std::cout << shared_variable << std::endl;
 
     return 0;
 }

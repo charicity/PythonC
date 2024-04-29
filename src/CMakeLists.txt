@@ -35,7 +35,7 @@ add_executable(pb_spawn pb_spawn.cpp ${PROTO_SRCS} ${PROTO_HDRS})
 target_link_libraries(pb_spawn ${PROTOBUF_LIBRARIES})
 target_link_libraries(pb_spawn ${Python_LIBRARIES})
 
-add_custom_target(python 
+add_custom_target(py
     COMMAND cp -f ../src/*.py ./
 )
 
