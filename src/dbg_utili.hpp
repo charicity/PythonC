@@ -30,6 +30,10 @@ void load_file(std::string& str, const std::string& file) {
     }
 
     str = buffer.str();
+
+    std::cout << "-------LOADED-------" << std::endl;
+    std::cout << str << std::endl;
+    std::cout << "-------LOADED-------" << std::endl;
 }
 
 void writeStringToFile(std::string& s) {

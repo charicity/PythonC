@@ -11,21 +11,14 @@ import binascii
 if __name__ == "__main__":
     print('Running script 1')
     
-    val = mymodule.get_shared_variable("useless")
-    # print('exit safely')
+    val = mymodule.get_shared_variable("key1","hh")
     print('type of val=',type(val))
-    # print(val)
-
-    # byte_data = val.encode()
-    # print('type of byte_data=',type(byte_data))
+    print('refcount of val=',sys.getrefcount(val))
 
     message = pb.context_value()
-    # with open("output.txt", "rb") as f:
-    #     message.ParseFromString(f.read())
-
-    print('len=',len(val))
-
     message.ParseFromString(val)
+
+    print('message=',message)
 
     if message.HasField('bool'):
         print("Data type: bool")

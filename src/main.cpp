@@ -9,7 +9,8 @@
 #include "dbg_utili.hpp"
 
 // 全局变量
-std::map<std::string, int> shared_variable;
+MatchRuleReq* ptrMatch = NULL;
+const std::string* ptrInfo = NULL;
 
 // 获取全局变量的值
 static PyObject* get_shared_variable(PyObject* self, PyObject* args) {
@@ -17,17 +18,24 @@ static PyObject* get_shared_variable(PyObject* self, PyObject* args) {
     if (!PyArg_ParseTuple(args, "s", &str)) {
         return NULL;
     }
-    printf("request_name: (TBD) [GET] '%s'=(TBD)\n", str);
-    // std::string s = convertToStdString(str);
 
-    context_value a;
+    printf("request_name: %s [GET] '%s'\n", ptrInfo->c_str(), str);
+    std::string s = convertToStdString(str);
 
-    a.set_uint32(10);
+    const auto& context_map = ptrMatch->context_map();
+    auto it = context_map.find(s);
+    if (it == context_map.end()) {
+        return NULL;
+    }
 
+    context_value giveaway;
     std::string msg;
-    a.SerializeToString(&msg);
+    giveaway = it->second;
+    giveaway.SerializeToString(&msg);
 
-    return Py_BuildValue("y#", msg.c_str(), msg.length());  // dangerous
+    PyObject* tmp = Py_BuildValue("y#", msg.c_str(), msg.length());
+
+    return tmp;  // dangerous?
 }
 
 // 设置全局变量的值
@@ -38,10 +46,10 @@ static PyObject* set_shared_variable(PyObject* self, PyObject* args) {
     if (!PyArg_ParseTuple(args, "si", &str, &new_value)) {
         return NULL;
     }
+    printf("request_name: %s [SET] '%s'\n", ptrInfo->c_str(), str);
 
     std::string s = convertToStdString(str);
 
-    shared_variable[s] = new_value;
     Py_RETURN_NONE;
 }
 
@@ -54,40 +62,65 @@ static PyMethodDef myModuleMethods[] = {
     {NULL, NULL, 0, NULL}};
 
 // 定义模块
-static struct PyModuleDef myModule = {PyModuleDef_HEAD_INIT, "mymodule", NULL,
-                                      -1, myModuleMethods};
+struct PyModuleDef myModule = {PyModuleDef_HEAD_INIT, "mymodule", NULL, -1,
+                               myModuleMethods};
 
 // 模块初始化函数
 PyMODINIT_FUNC PyInit_mymodule(void) { return PyModule_Create(&myModule); }
 
+void py_init() {
+    static bool initiated = false;
+
+    if (initiated) return;
+    initiated = true;
+
+    PyImport_AppendInittab("mymodule", &PyInit_mymodule);
+    Py_Initialize();
+}
+
+void py_end() {
+    Py_Finalize();
+    ;
+}
+
+void call_init(MatchRuleReq& maps, const std::string& info) {
+    ptrMatch = &maps;
+    ptrInfo = &info;
+}
+
+void call_end() {
+    static std::string clean = R"(
+print('cleaning')
+for key in globals().copy(): 
+    if not key.startswith("__"):
+        globals().pop(key))";
+    PyRun_SimpleString(clean.c_str());
+}
+
+void call_python(const std::string& script, MatchRuleReq& maps,
+                 const std::string& info) {
+    py_init();
+    call_init(maps, info);
+
+    PyRun_SimpleString(script.c_str());
+
+    call_end();
+}
+
 int main() {
-    // Python 脚本内容
+    MatchRuleReq tmp1, tmp2;
+    context_value val;
+
+    for (int i = 0; i < 10; ++i) val.mutable_array_int64()->add_data(i);
+    tmp1.mutable_context_map()->insert({"key1", val});
+
+    val.set_float_(1.2);
+    tmp2.mutable_context_map()->insert({"key1", val});
+
     std::string script1;
     load_file(script1, std::string("./main1.py"));
 
-    std::string script2;
-    load_file(script2, std::string("./main2.py"));
-
-    std::string script3;
-    load_file(script3, std::string("./main3.py"));
-
-    std::string clean;
-    load_file(clean, std::string("./clean.py"));
-
-    // 执行Python代码
-    // run_statement_in_module()
-    PyImport_AppendInittab("mymodule", &PyInit_mymodule);
-
-    Py_Initialize();
-
-    PyRun_SimpleString(script3.c_str());
-    PyRun_SimpleString(clean.c_str());
-    PyRun_SimpleString(script2.c_str());
-    PyRun_SimpleString(clean.c_str());
-    PyRun_SimpleString(script2.c_str());
-    PyRun_SimpleString(clean.c_str());
-
-    Py_Finalize();
-
+    call_python(script1, tmp1, "info1");
+    call_python(script1, tmp2, "info2");
     return 0;
 }
