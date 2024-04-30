@@ -87,6 +87,112 @@ PyObject* buildPyobjFromArrayString(const ArrayString* arrayString) {
     return pyList;
 }
 
+PyObject* buildPyobjFromContext(const context_value* value);
+
+PyObject* buildPyobjFromArrayValue(const ArrayValue* arrayValue) {
+    PyObject* pyList = PyList_New(0);
+    for (int i = 0; i < arrayValue->data_size(); i++) {
+        PyObject* pyValue = buildPyobjFromContext(&arrayValue->data(i));
+
+        PyList_Append(pyList, pyValue);
+
+        Py_DECREF(pyValue);  // 释放值对象!!!
+    }
+
+    return pyList;
+}
+
+PyObject* buildPyobjFromMapString(const MapString* mapString) {
+    PyObject* pyDict = PyDict_New();
+
+    for (const auto& pair : mapString->data()) {
+        PyObject* pyKey = PyUnicode_FromString(pair.first.c_str());
+        PyObject* pyValue = buildPyobjFromContext(&pair.second);
+        PyDict_SetItem(pyDict, pyKey, pyValue);
+
+        Py_DECREF(pyKey);    // 释放值对象!!!
+        Py_DECREF(pyValue);  // 释放值对象!!!
+    }
+
+    return pyDict;
+}
+
+PyObject* buildPyobjFromContext(const context_value* value) {
+    switch (value->value_type_case()) {
+        case value->kBool: {
+            return Py_BuildValue("O&", PyBool_FromLong, value->bool_());
+        }
+        case value->kFloat: {
+            return Py_BuildValue("O&", PyFloat_FromDouble, value->float_());
+        }
+        case value->kUint32: {
+            return Py_BuildValue("O&", PyLong_FromUnsignedLong,
+                                 value->uint32());
+        }
+        case value->kUint64: {
+            return Py_BuildValue("O&", PyLong_FromUnsignedLongLong,
+                                 value->uint64());
+        }
+        case value->kInt32: {
+            return Py_BuildValue("O&", PyLong_FromLong, value->int32());
+        }
+        case value->kInt64: {
+            return Py_BuildValue("O&", PyLong_FromLongLong, value->int64());
+        }
+        case value->kSint32: {
+            return Py_BuildValue("O&", PyLong_FromLong, value->sint32());
+        }
+        case value->kSint64: {
+            return Py_BuildValue("O&", PyLong_FromLongLong, value->sint64());
+        }
+        case value->kFixed32: {
+            return Py_BuildValue("O&", PyLong_FromUnsignedLong,
+                                 value->fixed32());
+        }
+        case value->kFixed64: {
+            return Py_BuildValue("O&", PyLong_FromUnsignedLongLong,
+                                 value->fixed64());
+        }
+        case value->kSfixed32: {
+            return Py_BuildValue("O&", PyLong_FromLong, value->sfixed32());
+        }
+        case value->kSfixed64: {
+            return Py_BuildValue("O&", PyLong_FromLongLong, value->sfixed64());
+        }
+        case value->kString: {
+            return Py_BuildValue("O&", PyUnicode_FromString,
+                                 value->string().c_str());
+        }
+        case value->kBytes: {
+            return Py_BuildValue("O&", PyBytes_FromString,
+                                 value->bytes().c_str());
+        }
+        case value->kArrayInt64: {
+            return buildPyobjFromArrayInt64(&value->array_int64());
+        }
+        case value->kArrayUint64: {
+            return buildPyobjFromArrayUint64(&value->array_uint64());
+        }
+        case value->kArrayDouble: {
+            return buildPyobjFromArrayDouble(&value->array_double());
+        }
+        case value->kArrayString: {
+            return buildPyobjFromArrayString(&value->array_string());
+        }
+        case value->kArrayValue: {
+            return buildPyobjFromArrayValue(&value->array_value());
+        }
+        case value->kMapString: {
+            return buildPyobjFromMapString(&value->map_string());
+        }
+        default: {
+            std::cerr << "[Error] Unrecongizable Type!" << std::endl;
+            break;
+        }
+    }
+    return NULL;
+}
+
 // 获取全局变量的值
 static PyObject* get_pyobj(PyObject* self, PyObject* args) {
     char* str;
@@ -101,74 +207,7 @@ static PyObject* get_pyobj(PyObject* self, PyObject* args) {
         return NULL;
     }
 
-    auto& value = it->second;
-
-    switch (value.value_type_case()) {
-        case value.kBool: {
-            return Py_BuildValue("O&", PyBool_FromLong, value.bool_());
-        }
-        case value.kFloat: {
-            return Py_BuildValue("O&", PyFloat_FromDouble, value.float_());
-        }
-        case value.kUint32: {
-            return Py_BuildValue("O&", PyLong_FromUnsignedLong, value.uint32());
-        }
-        case value.kUint64: {
-            return Py_BuildValue("O&", PyLong_FromUnsignedLongLong,
-                                 value.uint64());
-        }
-        case value.kInt32: {
-            return Py_BuildValue("O&", PyLong_FromLong, value.int32());
-        }
-        case value.kInt64: {
-            return Py_BuildValue("O&", PyLong_FromLongLong, value.int64());
-        }
-        case value.kSint32: {
-            return Py_BuildValue("O&", PyLong_FromLong, value.sint32());
-        }
-        case value.kSint64: {
-            return Py_BuildValue("O&", PyLong_FromLongLong, value.sint64());
-        }
-        case value.kFixed32: {
-            return Py_BuildValue("O&", PyLong_FromUnsignedLong,
-                                 value.fixed32());
-        }
-        case value.kFixed64: {
-            return Py_BuildValue("O&", PyLong_FromUnsignedLongLong,
-                                 value.fixed64());
-        }
-        case value.kSfixed32: {
-            return Py_BuildValue("O&", PyLong_FromLong, value.sfixed32());
-        }
-        case value.kSfixed64: {
-            return Py_BuildValue("O&", PyLong_FromLongLong, value.sfixed64());
-        }
-        case value.kString: {
-            return Py_BuildValue("O&", PyUnicode_FromString,
-                                 value.string().c_str());
-        }
-        case value.kBytes: {
-            return Py_BuildValue("O&", PyBytes_FromString,
-                                 value.bytes().c_str());
-        }
-        case value.kArrayInt64: {
-            return buildPyobjFromArrayInt64(&value.array_int64());
-        }
-        case value.kArrayUint64: {
-            return buildPyobjFromArrayUint64(&value.array_uint64());
-        }
-        case value.kArrayDouble: {
-            return buildPyobjFromArrayDouble(&value.array_double());
-        }
-        case value.kArrayString: {
-            return buildPyobjFromArrayString(&value.array_string());
-        }
-        default: {
-            std::cerr << "Complex Thingy" << std::endl;
-            break;
-        }
-    }
-    return NULL;
+    return buildPyobjFromContext(&it->second);
 }
 
 // 设置全局变量的值

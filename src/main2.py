@@ -70,4 +70,14 @@ if __name__ == "__main__":
     # print(obj)
     # print('ref count=',sys.getrefcount(obj))
     # print('type=',type(obj))
-    
+
+
+    # obj = mymodule.get_pyobj("array_value")
+    # print(obj)
+    # print('ref count=',sys.getrefcount(obj))
+    # print('type=',type(obj))
+
+    obj = mymodule.get_pyobj("map_string")
+    print(obj)
+    print('ref count=',sys.getrefcount(obj))
+    print('type=',type(obj))
