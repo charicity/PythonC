@@ -21,9 +21,9 @@ static PyObject* get_shared_variable(PyObject* self, PyObject* args) {
     printf("request_name: %s [GET] '%s'\n", ptrInfo->c_str(), str);
     std::string key = str;
 
-    const auto& context_map = ptrMatch->context_map();
-    auto it = context_map.find(key);
-    if (it == context_map.end()) {
+    auto& map_ref = (*ptrMatch->mutable_context_map());
+    auto it = map_ref.find(key);
+    if (it == map_ref.end()) {
         return NULL;
     }
 
@@ -58,7 +58,8 @@ static PyObject* set_shared_variable(PyObject* self, PyObject* args) {
 
     std::string key = str;
 
-    (*ptrMatch->mutable_context_map())[key] = fetch;
+    auto& map_ref = (*ptrMatch->mutable_context_map());
+    map_ref[key] = fetch;
 
     Py_RETURN_NONE;
 }

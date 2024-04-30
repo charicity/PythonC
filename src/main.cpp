@@ -22,17 +22,9 @@ int main() {
         val.mutable_array_int64()->add_data(i);
     }
 
-    tmp1.mutable_context_map()->insert({"key1", val});
-
-    call_python(script2, tmp1, "info2");
-
-    context_value& tmp_context = (*tmp1.mutable_context_map())["key1"];
-    if (tmp_context.has_array_int64()) {
-        std::cout << "MAP[key1]" << std::endl;
-        for (const auto& i : tmp_context.array_int64().data()) {
-            std::cout << i << std::endl;
-        }
-    }
+    std::cout << val.has_array_int64() << std::endl;
+    std::cout << (val.value_type_case() == val.kArrayInt64) << std::endl;
+    std::cout << (val.value_type_case() == val.kBool) << std::endl;
 
     return 0;
 }
