@@ -1,8 +1,8 @@
 #pragma once
 // 全局变量
-#ifndef PY_SSIZE_T_CLEAN
-#define PY_SSIZE_T_CLEAN
-#endif
+// #ifndef PY_SSIZE_T_CLEAN
+// #define PY_SSIZE_T_CLEAN
+// #endif
 #include <Python.h>
 
 #include "data.pb.h"
@@ -12,7 +12,7 @@ static MatchRuleReq* ptrMatch = NULL;
 static const std::string* ptrInfo = NULL;
 
 // 获取全局变量的值
-static PyObject* get_shared_variable(PyObject* self, PyObject* args) {
+static PyObject* get_protobuf(PyObject* self, PyObject* args) {
     char* str;
     if (!PyArg_ParseTuple(args, "s", &str)) {
         return NULL;
@@ -32,13 +32,147 @@ static PyObject* get_shared_variable(PyObject* self, PyObject* args) {
     ret = it->second;
     ret.SerializeToString(&msg);
 
-    PyObject* tmp = Py_BuildValue("y#", msg.c_str(), msg.length());
+    return Py_BuildValue("y", msg.c_str());
+}
 
-    return tmp;  // dangerous?
+PyObject* buildPyobjFromArrayInt64(const ArrayInt64* arrayInt64) {
+    PyObject* pyList = PyList_New(0);
+    for (int i = 0; i < arrayInt64->data_size(); i++) {
+        PyObject* pyValue = PyLong_FromLongLong(arrayInt64->data(i));
+
+        PyList_Append(pyList, pyValue);
+
+        Py_DECREF(pyValue);  // 释放值对象!!!
+    }
+
+    return pyList;
+}
+
+PyObject* buildPyobjFromArrayUint64(const ArrayUint64* arrayUint64) {
+    PyObject* pyList = PyList_New(0);
+    for (int i = 0; i < arrayUint64->data_size(); i++) {
+        PyObject* pyValue = PyLong_FromUnsignedLongLong(arrayUint64->data(i));
+
+        PyList_Append(pyList, pyValue);
+
+        Py_DECREF(pyValue);  // 释放值对象!!!
+    }
+
+    return pyList;
+}
+
+PyObject* buildPyobjFromArrayDouble(const ArrayDouble* arrayDouble) {
+    PyObject* pyList = PyList_New(0);
+    for (int i = 0; i < arrayDouble->data_size(); i++) {
+        PyObject* pyValue = PyFloat_FromDouble(arrayDouble->data(i));
+
+        PyList_Append(pyList, pyValue);
+
+        Py_DECREF(pyValue);  // 释放值对象!!!
+    }
+
+    return pyList;
+}
+
+PyObject* buildPyobjFromArrayString(const ArrayString* arrayString) {
+    PyObject* pyList = PyList_New(0);
+    for (int i = 0; i < arrayString->data_size(); i++) {
+        PyObject* pyValue = PyUnicode_FromString(arrayString->data(i).c_str());
+
+        PyList_Append(pyList, pyValue);
+
+        Py_DECREF(pyValue);  // 释放值对象!!!
+    }
+
+    return pyList;
+}
+
+// 获取全局变量的值
+static PyObject* get_pyobj(PyObject* self, PyObject* args) {
+    char* str;
+    if (!PyArg_ParseTuple(args, "s", &str)) {
+        return NULL;
+    }
+    std::string key = str;
+
+    auto& map_ref = (*ptrMatch->mutable_context_map());
+    auto it = map_ref.find(key);
+    if (it == map_ref.end()) {
+        return NULL;
+    }
+
+    auto& value = it->second;
+
+    switch (value.value_type_case()) {
+        case value.kBool: {
+            return Py_BuildValue("O&", PyBool_FromLong, value.bool_());
+        }
+        case value.kFloat: {
+            return Py_BuildValue("O&", PyFloat_FromDouble, value.float_());
+        }
+        case value.kUint32: {
+            return Py_BuildValue("O&", PyLong_FromUnsignedLong, value.uint32());
+        }
+        case value.kUint64: {
+            return Py_BuildValue("O&", PyLong_FromUnsignedLongLong,
+                                 value.uint64());
+        }
+        case value.kInt32: {
+            return Py_BuildValue("O&", PyLong_FromLong, value.int32());
+        }
+        case value.kInt64: {
+            return Py_BuildValue("O&", PyLong_FromLongLong, value.int64());
+        }
+        case value.kSint32: {
+            return Py_BuildValue("O&", PyLong_FromLong, value.sint32());
+        }
+        case value.kSint64: {
+            return Py_BuildValue("O&", PyLong_FromLongLong, value.sint64());
+        }
+        case value.kFixed32: {
+            return Py_BuildValue("O&", PyLong_FromUnsignedLong,
+                                 value.fixed32());
+        }
+        case value.kFixed64: {
+            return Py_BuildValue("O&", PyLong_FromUnsignedLongLong,
+                                 value.fixed64());
+        }
+        case value.kSfixed32: {
+            return Py_BuildValue("O&", PyLong_FromLong, value.sfixed32());
+        }
+        case value.kSfixed64: {
+            return Py_BuildValue("O&", PyLong_FromLongLong, value.sfixed64());
+        }
+        case value.kString: {
+            return Py_BuildValue("O&", PyUnicode_FromString,
+                                 value.string().c_str());
+        }
+        case value.kBytes: {
+            return Py_BuildValue("O&", PyBytes_FromString,
+                                 value.bytes().c_str());
+        }
+        case value.kArrayInt64: {
+            return buildPyobjFromArrayInt64(&value.array_int64());
+        }
+        case value.kArrayUint64: {
+            return buildPyobjFromArrayUint64(&value.array_uint64());
+        }
+        case value.kArrayDouble: {
+            return buildPyobjFromArrayDouble(&value.array_double());
+        }
+        case value.kArrayString: {
+            return buildPyobjFromArrayString(&value.array_string());
+        }
+        default: {
+            std::cerr << "Complex Thingy" << std::endl;
+            break;
+        }
+    }
+    return NULL;
 }
 
 // 设置全局变量的值
-static PyObject* set_shared_variable(PyObject* self, PyObject* args) {
+static PyObject* set_protobuf(PyObject* self, PyObject* args) {
     PyObject* new_value;
     char* str;
     char* data;
@@ -66,10 +200,9 @@ static PyObject* set_shared_variable(PyObject* self, PyObject* args) {
 
 // 定义方法
 static PyMethodDef myModuleMethods[] = {
-    {"get_shared_variable", get_shared_variable, METH_VARARGS,
-     "Get shared variable value"},
-    {"set_shared_variable", set_shared_variable, METH_VARARGS,
-     "Set shared variable value"},
+    {"get_protobuf", get_protobuf, METH_VARARGS, "Get protobuf by name"},
+    {"set_protobuf", set_protobuf, METH_VARARGS, "Set protobuf by name"},
+    {"get_pyobj", get_pyobj, METH_VARARGS, "Get pyobj by name"},
     {NULL, NULL, 0, NULL}};
 
 // 定义模块
@@ -101,10 +234,9 @@ static void call_init(MatchRuleReq& maps, const std::string& info) {
 
 static void call_end() {
     static std::string clean = R"(
-print('cleaning')
 for key in globals().copy(): 
     if not key.startswith("__"):
-        globals().pop(key))";
+        del key)";
     PyRun_SimpleString(clean.c_str());
 }
 
