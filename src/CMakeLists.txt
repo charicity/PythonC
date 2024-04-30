@@ -41,5 +41,4 @@ add_custom_target(py
 
 add_custom_target(cleanpy 
     COMMAND rm -f ./*.py
-    COMMAND rm -f ./*.so
 )

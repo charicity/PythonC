@@ -18,7 +18,7 @@ void py_ref_count(const PyObject* object, const char* s = "") {
     printf("Reference count of %s: %ld\n", s, Py_REFCNT(object));
 }
 
-void load_file(std::string& str, const std::string& file) {
+std::string load_file(const std::string& file, bool display = false) {
     std::ifstream infile(file.c_str());
     std::stringstream buffer;
 
@@ -29,11 +29,13 @@ void load_file(std::string& str, const std::string& file) {
         std::cerr << "Failed!" << std::endl;
     }
 
-    str = buffer.str();
+    if (display) {
+        std::cout << "-------LOADED-------" << std::endl;
+        std::cout << buffer.str() << std::endl;
+        std::cout << "-------LOADED-------" << std::endl;
+    }
 
-    std::cout << "-------LOADED-------" << std::endl;
-    std::cout << str << std::endl;
-    std::cout << "-------LOADED-------" << std::endl;
+    return buffer.str();
 }
 
 void writeStringToFile(std::string& s) {

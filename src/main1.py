@@ -11,7 +11,7 @@ import binascii
 if __name__ == "__main__":
     print('Running script 1')
     
-    val = mymodule.get_shared_variable("key1","hh")
+    val = mymodule.get_shared_variable("key1")
     print('type of val=',type(val))
     print('refcount of val=',sys.getrefcount(val))
 
