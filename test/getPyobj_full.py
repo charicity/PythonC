@@ -11,7 +11,7 @@ if 'k' not in locals() and 'k' not in globals():
 def test_getPyobj(strs):
     print('-------------')
     print('getting obj \'',strs,'\'',sep="")
-    obj = mymodule.get_pyobj(strs)
+    obj = mymodule.get_Pyobj(strs)
     print(obj)
     print('ref count=',sys.getrefcount(obj))
     print('type=',type(obj))

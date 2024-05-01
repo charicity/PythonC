@@ -18,3 +18,6 @@ add_custom_target( py
 add_executable(getPyobj_full getPyobj_full.cpp ${PROTO_SRCS} ${PROTO_HDRS})
 add_dependencies(getPyobj_full py)
 
+add_executable(setPyobj_full setPyobj_full.cpp ${PROTO_SRCS} ${PROTO_HDRS})
+add_dependencies(setPyobj_full py)
+

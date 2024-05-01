@@ -5,8 +5,14 @@ import numpy
 sys.path.append('.')
 import mymodule
 
-if 'k' not in locals() and 'k' not in globals():
-    k = 10
+def test_getPyobj(strs):
+    print('-------------')
+    print('getting obj \'',strs,'\'',sep="")
+    obj = mymodule.get_Pyobj(strs)
+    print(obj)
+    print('ref count=',sys.getrefcount(obj))
+    print('type=',type(obj))
+    print('-------------')
 
 def test_setPyobj(val, strs):
     print('-------------')
@@ -18,6 +24,47 @@ if __name__ == "__main__":
     print('minimal test of setPyobj')
 
     test_setPyobj(True, "bool")
+    test_setPyobj(False, "bool")
+
+    test_setPyobj(-2147483648, "long")
+    test_setPyobj(2147483647, "long")
+
+    test_setPyobj(-9223372036854775808, "long")
+
+    test_setPyobj(9223372036854775807, "long")
+    test_setPyobj(9223372036854775808, "long")
+
+    # test_setPyobj(29223372036854775808, "long") # overflow
+
+    strs="asdf"
+    test_setPyobj(strs.encode(), "bytes")
+
+    test_setPyobj(strs, "string")
+
+    test_setPyobj(0.0, "float")
+    test_setPyobj(0.1, "float")
+    test_setPyobj(-0.1, "float")
+    test_setPyobj(114.514, "float")
+    test_setPyobj(-114.514, "float")
+
+    lis = [1,2,3,4]
+    test_setPyobj(lis, "list")
+    test_getPyobj("list")
+
+    lis = [1,[2.1,2.2],3,4]
+    test_setPyobj(lis, "list")
+    test_getPyobj("list")
+
+    dic = {'a+b': '30', 'a*b': '11', 'list': lis}
+
+    test_setPyobj(dic, "dict")
+    test_getPyobj("dict")
+
+    tup = (1,2,3,4,5)
+
+    test_setPyobj(tup, "tuple")
+    test_getPyobj("tuple")
+
     # test_setPyobj("float")
     # test_setPyobj("double")
 

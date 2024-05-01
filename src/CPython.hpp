@@ -31,12 +31,11 @@ static PyObject* set_Pyobj(PyObject* self, PyObject* args) {
     if (!PyArg_ParseTuple(args, "Os", &object, &str) || object == NULL) {
         return NULL;
     }
-    printf("set_Pyobj(${value}, %s)", str);
     std::string key = str;
 
     auto& context = (*ptrMatch->mutable_context_map())[key];
 
-    setFromPyObj(object, context);
+    setFromPyObj(object, &context);
 
     Py_RETURN_NONE;
 }
@@ -57,8 +56,6 @@ static PyObject* set_Protobuf(PyObject* self, PyObject* args) {
 
     context_value fetch;
     fetch.ParseFromArray(data, strlen(data));
-
-    printf("len=%lu, val=%s\n", strlen(data), fetch.string().c_str());
 
     printf("request_name: %s [SET] '%s'\n", ptrInfo->c_str(), str);
 
@@ -98,10 +95,10 @@ static PyObject* get_Protobuf(PyObject* self, PyObject* args) {
 
 // 定义方法
 static PyMethodDef myModuleMethods[] = {
-    {"get_protobuf", get_Protobuf, METH_VARARGS, "Get protobuf by name"},
-    {"set_protobuf", set_Protobuf, METH_VARARGS, "Set protobuf by name"},
-    {"get_pyobj", get_Pyobj, METH_VARARGS, "Get pyobj by name"},
-    {"set_pyobj", set_Pyobj, METH_VARARGS, "Set pyobj to C++ host by name"},
+    {"get_Protobuf", get_Protobuf, METH_VARARGS, "Get protobuf by name"},
+    {"set_Protobuf", set_Protobuf, METH_VARARGS, "Set protobuf by name"},
+    {"get_Pyobj", get_Pyobj, METH_VARARGS, "Get pyobj by name"},
+    {"set_Pyobj", set_Pyobj, METH_VARARGS, "Set pyobj to C++ host by name"},
     {NULL, NULL, 0, NULL}};
 
 // 定义模块
@@ -132,8 +129,7 @@ static void call_init(MatchRuleReq& maps, const std::string& info) {
 }
 
 static void call_end() {
-    static std::string clean = R"(
-for key in globals().copy(): 
+    static std::string clean = R"(for key in globals().copy(): 
     if not key.startswith("__"):
         del key)";
     PyRun_SimpleString(clean.c_str());
