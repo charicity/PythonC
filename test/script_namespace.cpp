@@ -8,7 +8,5 @@
 #include "dbg_utili.hpp"
 
 int main() {
-    currentRunSingle("./setPyobj_full.py");
-
-    return 0;
+    // no
 }

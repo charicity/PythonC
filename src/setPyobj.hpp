@@ -134,26 +134,6 @@ void setFromPyObj(PyObject* object, context_value* context) {
     } else if (type == &PyLong_Type) {
         setPyobjByLong(object, context);
         // 数据类型可以优化
-
-        // switch (context->value_type_case()) {
-        //     case context->kInt64: {
-        //         std::cout << "Long: changed to I64 " << context->int64()
-        //                   << std::endl;
-        //         break;
-        //     }
-
-        //     case context->kInt32: {
-        //         std::cout << "Long: changed to I32 " << context->int32()
-        //                   << std::endl;
-        //         break;
-        //     }
-
-        //     case context->kUint64: {
-        //         std::cout << "Long: changed to U64 " << context->uint64()
-        //                   << std::endl;
-        //         break;
-        //     }
-        // }
     } else if (type == &PyBytes_Type) {
         // 二进制安全可以加上？
         setPyobjByBytes(object, context);

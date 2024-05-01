@@ -1,24 +1,36 @@
 #pragma once
+// todo: 给这个文件改名成 PythonC.hpp
 // 全局变量
+#include <assert.h>
+
 #include "data.pb.h"
 #include "getPyobj.hpp"
 #include "setPyobj.hpp"
 
-static MatchRuleReq* ptrMatch = NULL;
-static const std::string* ptrInfo = NULL;
+// 它会管理解释器的运行和结束
+// 用户自行 Py_Finalize() 可能会造成问题
+
+static MatchRuleReq* getMaps();
 
 // python 调用 get_pyobj(name) ，返回 PyObject
 static PyObject* get_Pyobj(PyObject* self, PyObject* args) {
     char* str;
     if (!PyArg_ParseTuple(args, "s", &str)) {
-        return NULL;
+        return nullptr;
     }
     std::string key = str;
 
-    auto& map_ref = (*ptrMatch->mutable_context_map());
+    MatchRuleReq* fetch = getMaps();
+    if (fetch == nullptr) {
+        std::cerr << "[Error] Happens when getting " << key << std::endl;
+        PyErr_SetString(PyExc_RuntimeError, "No such key!");
+        return nullptr;
+    }
+
+    auto& map_ref = (*fetch->mutable_context_map());
     auto it = map_ref.find(key);
     if (it == map_ref.end()) {
-        return NULL;
+        return nullptr;
     }
 
     return getPyobjFromContext(&it->second);
@@ -27,120 +39,177 @@ static PyObject* get_Pyobj(PyObject* self, PyObject* args) {
 // python调用 set_pyobj(PyObject, name) ，设置对应 MatchRuleReq ，无返回
 static PyObject* set_Pyobj(PyObject* self, PyObject* args) {
     char* str;
-    PyObject* object = NULL;
-    if (!PyArg_ParseTuple(args, "Os", &object, &str) || object == NULL) {
-        return NULL;
+    PyObject* object = nullptr;
+    if (!PyArg_ParseTuple(args, "Os", &object, &str) || object == nullptr) {
+        return nullptr;
     }
     std::string key = str;
+    std::cerr << "setting " << key << std::endl;
 
-    auto& context = (*ptrMatch->mutable_context_map())[key];
+    MatchRuleReq* fetch = getMaps();
+    if (fetch == nullptr) {
+        std::cerr << "fetch = null when " << key << std::endl;
+        return nullptr;
+    }
+
+    auto& context = (*fetch->mutable_context_map())[key];
 
     setFromPyObj(object, &context);
+    std::cerr << "done " << key << std::endl;
 
     Py_RETURN_NONE;
-}
-
-/* protobuf 的通信，不建议使用*/
-
-// 设置全局变量的值
-static PyObject* set_Protobuf(PyObject* self, PyObject* args) {
-    PyObject* new_value;
-    char* str;
-    char* data;
-
-    if (!PyArg_ParseTuple(args, "sy*", &str, &data)) {
-        // y* 会有 Memory Leak ，但是这个方法不建议使用，所以晚一点再修
-        // 需要 PyBuffer_Release();
-        return NULL;
-    }
-
-    context_value fetch;
-    fetch.ParseFromArray(data, strlen(data));
-
-    printf("request_name: %s [SET] '%s'\n", ptrInfo->c_str(), str);
-
-    std::string key = str;
-
-    auto& map_ref = (*ptrMatch->mutable_context_map());
-    map_ref[key] = fetch;
-
-    Py_RETURN_NONE;
-}
-
-// 获取全局变量的值
-static PyObject* get_Protobuf(PyObject* self, PyObject* args) {
-    char* str;
-    if (!PyArg_ParseTuple(args, "s", &str)) {
-        return NULL;
-    }
-
-    printf("request_name: %s [GET] '%s'\n", ptrInfo->c_str(), str);
-    std::string key = str;
-
-    auto& map_ref = (*ptrMatch->mutable_context_map());
-    auto it = map_ref.find(key);
-    if (it == map_ref.end()) {
-        return NULL;
-    }
-
-    context_value ret;
-    std::string msg;
-    ret = it->second;
-    ret.SerializeToString(&msg);
-
-    return Py_BuildValue("y", msg.c_str());
 }
 
 /*接口区*/
 
 // 定义方法
-static PyMethodDef myModuleMethods[] = {
-    {"get_Protobuf", get_Protobuf, METH_VARARGS, "Get protobuf by name"},
-    {"set_Protobuf", set_Protobuf, METH_VARARGS, "Set protobuf by name"},
-    {"get_Pyobj", get_Pyobj, METH_VARARGS, "Get pyobj by name"},
+static PyMethodDef PythonCMethods[] = {
+    {"get_Pyobj", get_Pyobj, METH_VARARGS, "Get pyobj from C++ host by name"},
     {"set_Pyobj", set_Pyobj, METH_VARARGS, "Set pyobj to C++ host by name"},
     {NULL, NULL, 0, NULL}};
 
 // 定义模块
-struct PyModuleDef myModule = {PyModuleDef_HEAD_INIT, "mymodule", NULL, -1,
-                               myModuleMethods};
+struct PyModuleDef PythonC = {PyModuleDef_HEAD_INIT, "pythonc", NULL, -1,
+                              PythonCMethods};
 
 // 模块初始化函数
-PyMODINIT_FUNC PyInit_mymodule(void) { return PyModule_Create(&myModule); }
+PyMODINIT_FUNC PyInit_PythonC(void) { return PyModule_Create(&PythonC); }
 
-static void py_init() {
-    static bool initiated = false;
+class pythoncNamespace {
+   private:
+    PyObject* global_;
+    PyObject* local_;
 
-    if (initiated) return;
-    initiated = true;
+   public:
+    static int InterpreterState_;
+    // 存放 "__PythonC_MatchRuleReq__" 这个值对应的 python str 类型的对象
+    // 随着解释器的释放创建而创建、释放而释放
+    static PyObject* MatchRulePyStr;
+    pythoncNamespace() {
+        if (pythoncNamespace::InterpreterState_ == InterpreterState::STOPPED) {
+            std::cerr << "[Error] Interpreter was stopped." << std::endl;
+            return;
+        }
 
-    PyImport_AppendInittab("mymodule", &PyInit_mymodule);
-    Py_Initialize();
+        if (pythoncNamespace::InterpreterState_ ==
+            InterpreterState::UNINITIALIZED) {
+            PyImport_AppendInittab("pythonc", &PyInit_PythonC);
+            Py_Initialize();
+            pythoncNamespace::InterpreterState_ = InterpreterState::RUNNING;
+
+            pythoncNamespace::MatchRulePyStr =
+                PyUnicode_FromString("__PythonC_MatchRuleReq__");
+        }
+        global_ = PyDict_New();
+        local_ = PyDict_New();
+    }
+    ~pythoncNamespace() {
+        Py_DECREF(global_);
+        Py_DECREF(local_);
+        // global_ = nullptr;
+        // local_ = nullptr;
+    }
+    enum InterpreterState { UNINITIALIZED = 0, RUNNING = 1, STOPPED = 2 };
+    int getInterpreterState() const noexcept {
+        return pythoncNamespace::InterpreterState_;
+    }
+    PyObject* getGlobal() { return global_; }
+    PyObject* getLocal() { return local_; }
+
+    void shutdownInterpreter() {
+        pythoncNamespace::InterpreterState_ = InterpreterState::STOPPED;
+        Py_DECREF(pythoncNamespace::MatchRulePyStr);
+        Py_Finalize();
+    }
+};
+int pythoncNamespace::InterpreterState_ =
+    pythoncNamespace::InterpreterState::UNINITIALIZED;
+
+PyObject* pythoncNamespace::MatchRulePyStr = nullptr;
+
+static MatchRuleReq* getMaps() {
+    PyObject* global_dict = PyEval_GetGlobals();  // 这是个借入的引用，万分注意
+    PyObject* item = PyDict_GetItemString(
+        global_dict, "__MatchRuleReq__");  // 这也是个借入的引用
+
+    if (item == nullptr) {
+        std::cerr << "Failed to get MatchRuleReq* in globals()" << std::endl;
+        PyErr_SetString(PyExc_RuntimeError,
+                        "Failed to get MatchRuleReq* in globals()");
+        return nullptr;
+    }
+
+    if (!PyCapsule_CheckExact(item)) {
+        std::cerr << "__MatchRuleReq__ in globals() is not a capsule"
+                  << std::endl;
+        PyErr_SetString(PyExc_RuntimeError,
+                        "__MatchRuleReq__ in globals() is not a capsule");
+        return nullptr;
+    }
+
+    return static_cast<MatchRuleReq*>(PyCapsule_GetPointer(item, nullptr));
 }
 
-static void py_end() {
-    Py_Finalize();
-    ;
+void call_python(PyObject* code, MatchRuleReq& maps, const std::string& info,
+                 pythoncNamespace space = pythoncNamespace()) {
+    // PyRun_SimpleString(script.c_str());
+    // info 目前也没用上，主要是不知道是不是这个需求
+    // 如果是的话就在 globals() 里再塞上一个
+    // 或许是在 locals() 里塞？ 有待实验验证
+
+    PyObject* tmpptr = PyCapsule_New(&maps, nullptr, nullptr);
+    // 还有判 nullptr 之类的~ 先验一下需求是否正确再做吧
+    int fetch =
+        PyDict_SetItemString(space.getGlobal(), "__MatchRuleReq__", tmpptr);
+    Py_DECREF(tmpptr);
+
+    PyObject* sys_module = PyImport_ImportModule("sys");
+    PyDict_SetItemString(space.getGlobal(), "sys", sys_module);  // 需要异常处理
+
+    PyObject* pythonc_module = PyImport_ImportModule("pythonc");
+
+    PyDict_SetItemString(space.getGlobal(), "pythonc",
+                         pythonc_module);  // 需要异常处理
+
+    // 把 MatchRuleReq* 放在 globals 字典的 __PythonC_MatchRuleReq__ 键中
+
+    if (fetch == -1) {
+        std::cerr << "[Error] Failed to set item in global diction."
+                  << std::endl;
+        return;
+    }
+
+    PyObject* result =
+        PyEval_EvalCode(code, space.getGlobal(), space.getLocal());
 }
 
-static void call_init(MatchRuleReq& maps, const std::string& info) {
-    ptrMatch = &maps;
-    ptrInfo = &info;
+PyObject* compile_python(const std::string& script, const std::string& name) {
+    if (pythoncNamespace::InterpreterState_ ==
+        pythoncNamespace::UNINITIALIZED) {
+        pythoncNamespace();
+    }
+    PyObject* code =
+        Py_CompileStringExFlags(script.c_str(), name.c_str(), Py_file_input,
+                                nullptr, 2);  // 2 是优化标签
+    if (code == nullptr) {
+        std::cout << "Error Compiling String" << std::endl;
+        return nullptr;
+    }
+
+    return code;
 }
 
-static void call_end() {
-    static std::string clean = R"(for key in globals().copy(): 
-    if not key.startswith("__"):
-        del key)";
-    PyRun_SimpleString(clean.c_str());
-}
+/*******************/
+// for debug
+void currentRunSingle(const std::string& path) {
+    MatchRuleReq tmp1;
 
-void call_python(const std::string& script, MatchRuleReq& maps,
-                 const std::string& info) {
-    py_init();
-    call_init(maps, info);
+    std::string script2 = load_file(path, false);
 
-    PyRun_SimpleString(script.c_str());
+    tmpPlaceAllTypes(tmp1);
 
-    call_end();
+    // pythoncNamespace();
+
+    auto com = compile_python(script2, "script2");
+    call_python(com, tmp1, "tmp");
 }

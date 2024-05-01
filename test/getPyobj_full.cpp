@@ -8,13 +8,7 @@
 #include "dbg_utili.hpp"
 
 int main() {
-    MatchRuleReq tmp1, tmp2;
-
-    std::string script2 = load_file("./getPyobj_full.py", false);
-
-    tmpPlaceAllTypes(tmp1);
-
-    call_python(script2, tmp1, "test getPyobj_full");
+    currentRunSingle("./getPyobj_full.py");
 
     return 0;
 }

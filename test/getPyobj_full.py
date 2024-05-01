@@ -1,17 +1,18 @@
 # # -*- coding:UTF-8 -*-
-import os
-import sys
-import numpy
-sys.path.append('.')
-import mymodule
+if 'sys' not in globals():
+    print('sys no')
 
-if 'k' not in locals() and 'k' not in globals():
-    k = 10
+if 'pythonc' not in globals():
+    print('pythonc no')
+
+if '__MatchRuleReq__' not in globals():
+    print('__MatchRuleReq__ no')
 
 def test_getPyobj(strs):
     print('-------------')
     print('getting obj \'',strs,'\'',sep="")
-    obj = mymodule.get_Pyobj(strs)
+    obj = pythonc.get_Pyobj(strs)
+    # obj = 1
     print(obj)
     print('ref count=',sys.getrefcount(obj))
     print('type=',type(obj))

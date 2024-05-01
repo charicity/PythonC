@@ -8,9 +8,9 @@ static PyObject* getPyobjFromArrayInt64(const ArrayInt64* arrayInt64) {
     PyObject* pyList = PyList_New(0);
     for (int i = 0; i < arrayInt64->data_size(); i++) {
         PyObject* pyValue = PyLong_FromLongLong(arrayInt64->data(i));
-        if (pyValue == NULL) {
+        if (pyValue == nullptr) {
             Py_DECREF(pyList);
-            return NULL;
+            return nullptr;
         }
 
         PyList_Append(pyList, pyValue);
@@ -25,9 +25,9 @@ static PyObject* getPyobjFromArrayUint64(const ArrayUint64* arrayUint64) {
     PyObject* pyList = PyList_New(0);
     for (int i = 0; i < arrayUint64->data_size(); i++) {
         PyObject* pyValue = PyLong_FromUnsignedLongLong(arrayUint64->data(i));
-        if (pyValue == NULL) {
+        if (pyValue == nullptr) {
             Py_DECREF(pyList);
-            return NULL;
+            return nullptr;
         }
 
         PyList_Append(pyList, pyValue);
@@ -42,9 +42,9 @@ static PyObject* getPyobjFromArrayDouble(const ArrayDouble* arrayDouble) {
     PyObject* pyList = PyList_New(0);
     for (int i = 0; i < arrayDouble->data_size(); i++) {
         PyObject* pyValue = PyFloat_FromDouble(arrayDouble->data(i));
-        if (pyValue == NULL) {
+        if (pyValue == nullptr) {
             Py_DECREF(pyList);
-            return NULL;
+            return nullptr;
         }
 
         PyList_Append(pyList, pyValue);
@@ -59,9 +59,9 @@ static PyObject* getPyobjFromArrayString(const ArrayString* arrayString) {
     PyObject* pyList = PyList_New(0);
     for (int i = 0; i < arrayString->data_size(); i++) {
         PyObject* pyValue = PyUnicode_FromString(arrayString->data(i).c_str());
-        if (pyValue == NULL) {
+        if (pyValue == nullptr) {
             Py_DECREF(pyList);
-            return NULL;
+            return nullptr;
         }
 
         PyList_Append(pyList, pyValue);
@@ -78,9 +78,9 @@ static PyObject* getPyobjFromArrayValue(const ArrayValue* arrayValue) {
     PyObject* pyList = PyList_New(0);
     for (int i = 0; i < arrayValue->data_size(); i++) {
         PyObject* pyValue = getPyobjFromContext(&arrayValue->data(i));
-        if (pyValue == NULL) {
+        if (pyValue == nullptr) {
             Py_DECREF(pyList);
-            return NULL;
+            return nullptr;
         }
 
         PyList_Append(pyList, pyValue);
@@ -96,16 +96,16 @@ static PyObject* getPyobjFromMapString(const MapString* mapString) {
 
     for (const auto& pair : mapString->data()) {
         PyObject* pyKey = PyUnicode_FromString(pair.first.c_str());
-        if (pyKey == NULL) {
+        if (pyKey == nullptr) {
             Py_DECREF(pyDict);
-            return NULL;
+            return nullptr;
         }
 
         PyObject* pyValue = getPyobjFromContext(&pair.second);
-        if (pyValue == NULL) {
+        if (pyValue == nullptr) {
             Py_DECREF(pyKey);
             Py_DECREF(pyDict);
-            return NULL;
+            return nullptr;
         }
 
         PyDict_SetItem(pyDict, pyKey, pyValue);
@@ -199,5 +199,5 @@ PyObject* getPyobjFromContext(const context_value* value) {
             break;
         }
     }
-    return NULL;
+    return nullptr;
 }

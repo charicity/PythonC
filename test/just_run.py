@@ -3,7 +3,7 @@ import os
 import sys
 import numpy
 sys.path.append('.')
-import mymodule
+import pythonc
 
 print('just_run test')
 print("hello world!")
