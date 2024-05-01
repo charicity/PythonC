@@ -19,7 +19,7 @@ int main() {
 
     tmpPlaceAllTypes(tmp1);
 
-    call_python(script2, tmp1, "test get_pyobj int64");
+    call_python(script2, tmp1, "test getPyobj_full");
 
     return 0;
 }

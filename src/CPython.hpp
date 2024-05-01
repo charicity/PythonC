@@ -43,7 +43,7 @@ PyObject* buildPyobjFromArrayInt64(const ArrayInt64* arrayInt64) {
 
         PyList_Append(pyList, pyValue);
 
-        Py_DECREF(pyValue);  // 释放值对象!!!
+        Py_DECREF(pyValue);
     }
 
     return pyList;
@@ -60,7 +60,7 @@ PyObject* buildPyobjFromArrayUint64(const ArrayUint64* arrayUint64) {
 
         PyList_Append(pyList, pyValue);
 
-        Py_DECREF(pyValue);  // 释放值对象!!!
+        Py_DECREF(pyValue);
     }
 
     return pyList;
@@ -77,7 +77,7 @@ PyObject* buildPyobjFromArrayDouble(const ArrayDouble* arrayDouble) {
 
         PyList_Append(pyList, pyValue);
 
-        Py_DECREF(pyValue);  // 释放值对象!!!
+        Py_DECREF(pyValue);
     }
 
     return pyList;
@@ -94,7 +94,7 @@ PyObject* buildPyobjFromArrayString(const ArrayString* arrayString) {
 
         PyList_Append(pyList, pyValue);
 
-        Py_DECREF(pyValue);  // 释放值对象!!!
+        Py_DECREF(pyValue);
     }
 
     return pyList;
@@ -113,7 +113,7 @@ PyObject* buildPyobjFromArrayValue(const ArrayValue* arrayValue) {
 
         PyList_Append(pyList, pyValue);
 
-        Py_DECREF(pyValue);  // 释放值对象!!!
+        Py_DECREF(pyValue);
     }
 
     return pyList;
@@ -138,8 +138,8 @@ PyObject* buildPyobjFromMapString(const MapString* mapString) {
 
         PyDict_SetItem(pyDict, pyKey, pyValue);
 
-        Py_DECREF(pyKey);    // 释放值对象!!!
-        Py_DECREF(pyValue);  // 释放值对象!!!
+        Py_DECREF(pyKey);
+        Py_DECREF(pyValue);
     }
 
     return pyDict;
