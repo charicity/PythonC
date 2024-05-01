@@ -4,7 +4,7 @@
 #include <cstring>
 #include <iostream>
 
-#include "CPython.hpp"
+#include "PythonC.hpp"
 #include "dbg_utili.hpp"
 
 int main() {

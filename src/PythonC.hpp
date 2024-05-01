@@ -1,6 +1,4 @@
 #pragma once
-// todo: 给这个文件改名成 PythonC.hpp
-// 全局变量
 #include <assert.h>
 
 #include "data.pb.h"
