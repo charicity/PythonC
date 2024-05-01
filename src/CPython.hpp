@@ -1,15 +1,77 @@
 #pragma once
 // 全局变量
-#include <Python.h>
-
 #include "data.pb.h"
-#include "dbg_utili.hpp"
+#include "getPyobj.hpp"
+#include "setPyobj.hpp"
 
 static MatchRuleReq* ptrMatch = NULL;
 static const std::string* ptrInfo = NULL;
 
+// python调用 get_pyobj(name) ，返回 PyObject
+static PyObject* get_Pyobj(PyObject* self, PyObject* args) {
+    char* str;
+    if (!PyArg_ParseTuple(args, "s", &str)) {
+        return NULL;
+    }
+    std::string key = str;
+
+    auto& map_ref = (*ptrMatch->mutable_context_map());
+    auto it = map_ref.find(key);
+    if (it == map_ref.end()) {
+        return NULL;
+    }
+
+    return getPyobjFromContext(&it->second);
+}
+
+// python调用 set_pyobj(PyObject, name) ，设置对应 MatchRuleReq ，无返回
+static PyObject* set_Pyobj(PyObject* self, PyObject* args) {
+    char* str;
+    PyObject* object = NULL;
+    if (!PyArg_ParseTuple(args, "Os", &object, &str) || object == NULL) {
+        return NULL;
+    }
+    printf("set_Pyobj(${value}, %s)", str);
+    std::string key = str;
+
+    auto& context = (*ptrMatch->mutable_context_map())[key];
+
+    setFromPyObj(object, context);
+
+    Py_RETURN_NONE;
+}
+
+/* protobuf 的通信，不建议使用*/
+
+// 设置全局变量的值
+static PyObject* set_Protobuf(PyObject* self, PyObject* args) {
+    PyObject* new_value;
+    char* str;
+    char* data;
+
+    if (!PyArg_ParseTuple(args, "sy*", &str, &data)) {
+        // y* 会有 Memory Leak ，但是这个方法不建议使用，所以晚一点再修
+        // 需要 PyBuffer_Release();
+        return NULL;
+    }
+
+    context_value fetch;
+    fetch.ParseFromArray(data, strlen(data));
+
+    printf("len=%lu, val=%s\n", strlen(data), fetch.string().c_str());
+
+    printf("request_name: %s [SET] '%s'\n", ptrInfo->c_str(), str);
+
+    std::string key = str;
+
+    auto& map_ref = (*ptrMatch->mutable_context_map());
+    map_ref[key] = fetch;
+
+    Py_RETURN_NONE;
+}
+
 // 获取全局变量的值
-static PyObject* get_protobuf(PyObject* self, PyObject* args) {
+static PyObject* get_Protobuf(PyObject* self, PyObject* args) {
     char* str;
     if (!PyArg_ParseTuple(args, "s", &str)) {
         return NULL;
@@ -32,252 +94,14 @@ static PyObject* get_protobuf(PyObject* self, PyObject* args) {
     return Py_BuildValue("y", msg.c_str());
 }
 
-PyObject* buildPyobjFromArrayInt64(const ArrayInt64* arrayInt64) {
-    PyObject* pyList = PyList_New(0);
-    for (int i = 0; i < arrayInt64->data_size(); i++) {
-        PyObject* pyValue = PyLong_FromLongLong(arrayInt64->data(i));
-        if (pyValue == NULL) {
-            Py_DECREF(pyList);
-            return NULL;
-        }
-
-        PyList_Append(pyList, pyValue);
-
-        Py_DECREF(pyValue);
-    }
-
-    return pyList;
-}
-
-PyObject* buildPyobjFromArrayUint64(const ArrayUint64* arrayUint64) {
-    PyObject* pyList = PyList_New(0);
-    for (int i = 0; i < arrayUint64->data_size(); i++) {
-        PyObject* pyValue = PyLong_FromUnsignedLongLong(arrayUint64->data(i));
-        if (pyValue == NULL) {
-            Py_DECREF(pyList);
-            return NULL;
-        }
-
-        PyList_Append(pyList, pyValue);
-
-        Py_DECREF(pyValue);
-    }
-
-    return pyList;
-}
-
-PyObject* buildPyobjFromArrayDouble(const ArrayDouble* arrayDouble) {
-    PyObject* pyList = PyList_New(0);
-    for (int i = 0; i < arrayDouble->data_size(); i++) {
-        PyObject* pyValue = PyFloat_FromDouble(arrayDouble->data(i));
-        if (pyValue == NULL) {
-            Py_DECREF(pyList);
-            return NULL;
-        }
-
-        PyList_Append(pyList, pyValue);
-
-        Py_DECREF(pyValue);
-    }
-
-    return pyList;
-}
-
-PyObject* buildPyobjFromArrayString(const ArrayString* arrayString) {
-    PyObject* pyList = PyList_New(0);
-    for (int i = 0; i < arrayString->data_size(); i++) {
-        PyObject* pyValue = PyUnicode_FromString(arrayString->data(i).c_str());
-        if (pyValue == NULL) {
-            Py_DECREF(pyList);
-            return NULL;
-        }
-
-        PyList_Append(pyList, pyValue);
-
-        Py_DECREF(pyValue);
-    }
-
-    return pyList;
-}
-
-PyObject* buildPyobjFromContext(const context_value* value);
-
-PyObject* buildPyobjFromArrayValue(const ArrayValue* arrayValue) {
-    PyObject* pyList = PyList_New(0);
-    for (int i = 0; i < arrayValue->data_size(); i++) {
-        PyObject* pyValue = buildPyobjFromContext(&arrayValue->data(i));
-        if (pyValue == NULL) {
-            Py_DECREF(pyList);
-            return NULL;
-        }
-
-        PyList_Append(pyList, pyValue);
-
-        Py_DECREF(pyValue);
-    }
-
-    return pyList;
-}
-
-PyObject* buildPyobjFromMapString(const MapString* mapString) {
-    PyObject* pyDict = PyDict_New();
-
-    for (const auto& pair : mapString->data()) {
-        PyObject* pyKey = PyUnicode_FromString(pair.first.c_str());
-        if (pyKey == NULL) {
-            Py_DECREF(pyDict);
-            return NULL;
-        }
-
-        PyObject* pyValue = buildPyobjFromContext(&pair.second);
-        if (pyValue == NULL) {
-            Py_DECREF(pyKey);
-            Py_DECREF(pyDict);
-            return NULL;
-        }
-
-        PyDict_SetItem(pyDict, pyKey, pyValue);
-
-        Py_DECREF(pyKey);
-        Py_DECREF(pyValue);
-    }
-
-    return pyDict;
-}
-
-PyObject* buildPyobjFromContext(const context_value* value) {
-    switch (value->value_type_case()) {
-        case value->kBool: {
-            return PyBool_FromLong(value->bool_());
-        }
-        case value->kFloat: {
-            return Py_BuildValue("f", value->double_());
-            // return Py_BuildValue("O&", PyFloat_FromDouble, value->float_());
-        }
-        case value->kDouble: {
-            return Py_BuildValue("d", value->double_());
-            // return Py_BuildValue("O&", PyFloat_FromDouble, value->double_());
-        }
-        case value->kUint32: {
-            return Py_BuildValue("O&", PyLong_FromUnsignedLong,
-                                 value->uint32());
-        }
-        case value->kUint64: {
-            return Py_BuildValue("O&", PyLong_FromUnsignedLongLong,
-                                 value->uint64());
-        }
-        case value->kInt32: {
-            return Py_BuildValue("O&", PyLong_FromLong, value->int32());
-        }
-        case value->kInt64: {
-            // 我不知道为什么这个返回的PyObject引用计数是9...
-            // 文档上说没关系，那就没关系吧
-            return Py_BuildValue("O&", PyLong_FromLongLong, value->int64());
-        }
-        case value->kSint32: {
-            return Py_BuildValue("O&", PyLong_FromLong, value->sint32());
-        }
-        case value->kSint64: {
-            return Py_BuildValue("O&", PyLong_FromLongLong, value->sint64());
-        }
-        case value->kFixed32: {
-            return Py_BuildValue("O&", PyLong_FromUnsignedLong,
-                                 value->fixed32());
-        }
-        case value->kFixed64: {
-            return Py_BuildValue("O&", PyLong_FromUnsignedLongLong,
-                                 value->fixed64());
-        }
-        case value->kSfixed32: {
-            return Py_BuildValue("i", value->sfixed32());
-            // return Py_BuildValue("O&", PyLong_FromLong, value->sfixed32());
-        }
-        case value->kSfixed64: {
-            return Py_BuildValue("O&", PyLong_FromLongLong, value->sfixed64());
-        }
-        case value->kString: {
-            return Py_BuildValue("O&", PyUnicode_FromString,
-                                 value->string().c_str());
-        }
-        case value->kBytes: {
-            return Py_BuildValue("O&", PyBytes_FromString,
-                                 value->bytes().c_str());
-        }
-        case value->kArrayInt64: {
-            return buildPyobjFromArrayInt64(&value->array_int64());
-        }
-        case value->kArrayUint64: {
-            return buildPyobjFromArrayUint64(&value->array_uint64());
-        }
-        case value->kArrayDouble: {
-            return buildPyobjFromArrayDouble(&value->array_double());
-        }
-        case value->kArrayString: {
-            return buildPyobjFromArrayString(&value->array_string());
-        }
-        case value->kArrayValue: {
-            return buildPyobjFromArrayValue(&value->array_value());
-        }
-        case value->kMapString: {
-            return buildPyobjFromMapString(&value->map_string());
-        }
-        default: {
-            std::cerr << "[Error] Unrecongizable Type!" << std::endl;
-            break;
-        }
-    }
-    return NULL;
-}
-
-// 获取全局变量的值
-static PyObject* get_pyobj(PyObject* self, PyObject* args) {
-    char* str;
-    if (!PyArg_ParseTuple(args, "s", &str)) {
-        return NULL;
-    }
-    std::string key = str;
-
-    auto& map_ref = (*ptrMatch->mutable_context_map());
-    auto it = map_ref.find(key);
-    if (it == map_ref.end()) {
-        return NULL;
-    }
-
-    return buildPyobjFromContext(&it->second);
-}
-
-// 设置全局变量的值
-static PyObject* set_protobuf(PyObject* self, PyObject* args) {
-    PyObject* new_value;
-    char* str;
-    char* data;
-
-    // 使用 PyArg_ParseTuple 解析参数
-    if (!PyArg_ParseTuple(args, "sy*", &str, &data)) {
-        // 解析失败，返回 NULL 表示出错
-        return NULL;
-    }
-
-    context_value fetch;
-    fetch.ParseFromArray(data, strlen(data));
-
-    printf("len=%lu, val=%s\n", strlen(data), fetch.string().c_str());
-
-    printf("request_name: %s [SET] '%s'\n", ptrInfo->c_str(), str);
-
-    std::string key = str;
-
-    auto& map_ref = (*ptrMatch->mutable_context_map());
-    map_ref[key] = fetch;
-
-    Py_RETURN_NONE;
-}
+/*接口区*/
 
 // 定义方法
 static PyMethodDef myModuleMethods[] = {
-    {"get_protobuf", get_protobuf, METH_VARARGS, "Get protobuf by name"},
-    {"set_protobuf", set_protobuf, METH_VARARGS, "Set protobuf by name"},
-    {"get_pyobj", get_pyobj, METH_VARARGS, "Get pyobj by name"},
+    {"get_protobuf", get_Protobuf, METH_VARARGS, "Get protobuf by name"},
+    {"set_protobuf", set_Protobuf, METH_VARARGS, "Set protobuf by name"},
+    {"get_pyobj", get_Pyobj, METH_VARARGS, "Get pyobj by name"},
+    {"set_pyobj", set_Pyobj, METH_VARARGS, "Set pyobj to C++ host by name"},
     {NULL, NULL, 0, NULL}};
 
 // 定义模块

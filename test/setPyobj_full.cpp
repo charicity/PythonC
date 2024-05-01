@@ -10,7 +10,7 @@
 int main() {
     MatchRuleReq tmp1, tmp2;
 
-    std::string script2 = load_file("./getPyobj_full.py", false);
+    std::string script2 = load_file("./setPyobj_full.py", false);
 
     tmpPlaceAllTypes(tmp1);
 
