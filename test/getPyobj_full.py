@@ -48,4 +48,4 @@ if __name__ == "__main__":
     test_getPyobj("array_value")
     test_getPyobj("map_string")
 
-    print('test CMAKE1')
+    print('test CMAKE2')

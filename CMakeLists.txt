@@ -12,7 +12,6 @@ include_directories(${Python_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 # 生成 Protobuf 源文件
-PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ./src/data.proto)
 
 add_subdirectory(src)
 add_subdirectory(test)
