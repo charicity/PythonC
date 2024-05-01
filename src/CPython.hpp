@@ -22,14 +22,16 @@ static PyObject* get_Pyobj(PyObject* self, PyObject* args) {
 
     MatchRuleReq* fetch = getMaps();
     if (fetch == nullptr) {
-        std::cerr << "[Error] Happens when getting " << key << std::endl;
-        PyErr_SetString(PyExc_RuntimeError, "No such key!");
+        std::cerr << "[Error] No __MatchRuleReq__" << std::endl;
+        PyErr_SetString(PyExc_RuntimeError, "No __MatchRuleReq__");
         return nullptr;
     }
 
     auto& map_ref = (*fetch->mutable_context_map());
     auto it = map_ref.find(key);
     if (it == map_ref.end()) {
+        std::cerr << "[Error] No such key: " << key << std::endl;
+        PyErr_SetString(PyExc_RuntimeError, "No such key!");
         return nullptr;
     }
 
@@ -44,7 +46,7 @@ static PyObject* set_Pyobj(PyObject* self, PyObject* args) {
         return nullptr;
     }
     std::string key = str;
-    std::cerr << "setting " << key << std::endl;
+    // std::cerr << "setting " << key << std::endl;
 
     MatchRuleReq* fetch = getMaps();
     if (fetch == nullptr) {
@@ -55,7 +57,6 @@ static PyObject* set_Pyobj(PyObject* self, PyObject* args) {
     auto& context = (*fetch->mutable_context_map())[key];
 
     setFromPyObj(object, &context);
-    std::cerr << "done " << key << std::endl;
 
     Py_RETURN_NONE;
 }
@@ -166,6 +167,10 @@ void call_python(PyObject* code, MatchRuleReq& maps, const std::string& info,
     PyObject* sys_module = PyImport_ImportModule("sys");
     PyDict_SetItemString(space.getGlobal(), "sys", sys_module);  // 需要异常处理
 
+    PyObject* numpy_module = PyImport_ImportModule("numpy");
+    PyDict_SetItemString(space.getGlobal(), "numpy",
+                         numpy_module);  // 需要异常处理
+
     PyObject* pythonc_module = PyImport_ImportModule("pythonc");
 
     PyDict_SetItemString(space.getGlobal(), "pythonc",
@@ -181,6 +186,26 @@ void call_python(PyObject* code, MatchRuleReq& maps, const std::string& info,
 
     PyObject* result =
         PyEval_EvalCode(code, space.getGlobal(), space.getLocal());
+    if (result == nullptr || PyErr_Occurred()) {
+        // Retrieve the exception information
+        PyObject *pType, *pValue, *pTraceback;
+        PyErr_Fetch(&pType, &pValue, &pTraceback);
+
+        // Convert the exception to a string
+        PyObject* pStr = PyObject_Str(pValue);
+        const char* errorMsg = PyUnicode_AsUTF8(pStr);
+
+        // Output the error message
+        std::cerr << "Python error: " << errorMsg << std::endl;
+
+        // Cleanup
+        Py_XDECREF(pStr);
+        Py_XDECREF(pType);
+        Py_XDECREF(pValue);
+        Py_XDECREF(pTraceback);
+    }
+    Py_XDECREF(result);
+    return;
 }
 
 PyObject* compile_python(const std::string& script, const std::string& name) {
