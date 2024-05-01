@@ -1,8 +1,5 @@
 #pragma once
 // 全局变量
-// #ifndef PY_SSIZE_T_CLEAN
-// #define PY_SSIZE_T_CLEAN
-// #endif
 #include <Python.h>
 
 #include "data.pb.h"
@@ -39,6 +36,10 @@ PyObject* buildPyobjFromArrayInt64(const ArrayInt64* arrayInt64) {
     PyObject* pyList = PyList_New(0);
     for (int i = 0; i < arrayInt64->data_size(); i++) {
         PyObject* pyValue = PyLong_FromLongLong(arrayInt64->data(i));
+        if (pyValue == NULL) {
+            Py_DECREF(pyList);
+            return NULL;
+        }
 
         PyList_Append(pyList, pyValue);
 
@@ -52,6 +53,10 @@ PyObject* buildPyobjFromArrayUint64(const ArrayUint64* arrayUint64) {
     PyObject* pyList = PyList_New(0);
     for (int i = 0; i < arrayUint64->data_size(); i++) {
         PyObject* pyValue = PyLong_FromUnsignedLongLong(arrayUint64->data(i));
+        if (pyValue == NULL) {
+            Py_DECREF(pyList);
+            return NULL;
+        }
 
         PyList_Append(pyList, pyValue);
 
@@ -65,6 +70,10 @@ PyObject* buildPyobjFromArrayDouble(const ArrayDouble* arrayDouble) {
     PyObject* pyList = PyList_New(0);
     for (int i = 0; i < arrayDouble->data_size(); i++) {
         PyObject* pyValue = PyFloat_FromDouble(arrayDouble->data(i));
+        if (pyValue == NULL) {
+            Py_DECREF(pyList);
+            return NULL;
+        }
 
         PyList_Append(pyList, pyValue);
 
@@ -78,6 +87,10 @@ PyObject* buildPyobjFromArrayString(const ArrayString* arrayString) {
     PyObject* pyList = PyList_New(0);
     for (int i = 0; i < arrayString->data_size(); i++) {
         PyObject* pyValue = PyUnicode_FromString(arrayString->data(i).c_str());
+        if (pyValue == NULL) {
+            Py_DECREF(pyList);
+            return NULL;
+        }
 
         PyList_Append(pyList, pyValue);
 
@@ -93,6 +106,10 @@ PyObject* buildPyobjFromArrayValue(const ArrayValue* arrayValue) {
     PyObject* pyList = PyList_New(0);
     for (int i = 0; i < arrayValue->data_size(); i++) {
         PyObject* pyValue = buildPyobjFromContext(&arrayValue->data(i));
+        if (pyValue == NULL) {
+            Py_DECREF(pyList);
+            return NULL;
+        }
 
         PyList_Append(pyList, pyValue);
 
@@ -107,7 +124,18 @@ PyObject* buildPyobjFromMapString(const MapString* mapString) {
 
     for (const auto& pair : mapString->data()) {
         PyObject* pyKey = PyUnicode_FromString(pair.first.c_str());
+        if (pyKey == NULL) {
+            Py_DECREF(pyDict);
+            return NULL;
+        }
+
         PyObject* pyValue = buildPyobjFromContext(&pair.second);
+        if (pyValue == NULL) {
+            Py_DECREF(pyKey);
+            Py_DECREF(pyDict);
+            return NULL;
+        }
+
         PyDict_SetItem(pyDict, pyKey, pyValue);
 
         Py_DECREF(pyKey);    // 释放值对象!!!
@@ -120,10 +148,15 @@ PyObject* buildPyobjFromMapString(const MapString* mapString) {
 PyObject* buildPyobjFromContext(const context_value* value) {
     switch (value->value_type_case()) {
         case value->kBool: {
-            return Py_BuildValue("O&", PyBool_FromLong, value->bool_());
+            return PyBool_FromLong(value->bool_());
         }
         case value->kFloat: {
-            return Py_BuildValue("O&", PyFloat_FromDouble, value->float_());
+            return Py_BuildValue("f", value->double_());
+            // return Py_BuildValue("O&", PyFloat_FromDouble, value->float_());
+        }
+        case value->kDouble: {
+            return Py_BuildValue("d", value->double_());
+            // return Py_BuildValue("O&", PyFloat_FromDouble, value->double_());
         }
         case value->kUint32: {
             return Py_BuildValue("O&", PyLong_FromUnsignedLong,
@@ -137,6 +170,8 @@ PyObject* buildPyobjFromContext(const context_value* value) {
             return Py_BuildValue("O&", PyLong_FromLong, value->int32());
         }
         case value->kInt64: {
+            // 我不知道为什么这个返回的PyObject引用计数是9...
+            // 文档上说没关系，那就没关系吧
             return Py_BuildValue("O&", PyLong_FromLongLong, value->int64());
         }
         case value->kSint32: {
@@ -154,7 +189,8 @@ PyObject* buildPyobjFromContext(const context_value* value) {
                                  value->fixed64());
         }
         case value->kSfixed32: {
-            return Py_BuildValue("O&", PyLong_FromLong, value->sfixed32());
+            return Py_BuildValue("i", value->sfixed32());
+            // return Py_BuildValue("O&", PyLong_FromLong, value->sfixed32());
         }
         case value->kSfixed64: {
             return Py_BuildValue("O&", PyLong_FromLongLong, value->sfixed64());
