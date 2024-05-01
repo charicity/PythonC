@@ -7,7 +7,7 @@
 static MatchRuleReq* ptrMatch = NULL;
 static const std::string* ptrInfo = NULL;
 
-// python调用 get_pyobj(name) ，返回 PyObject
+// python 调用 get_pyobj(name) ，返回 PyObject
 static PyObject* get_Pyobj(PyObject* self, PyObject* args) {
     char* str;
     if (!PyArg_ParseTuple(args, "s", &str)) {

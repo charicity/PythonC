@@ -21,3 +21,5 @@ add_dependencies(getPyobj_full py)
 add_executable(setPyobj_full setPyobj_full.cpp ${PROTO_SRCS} ${PROTO_HDRS})
 add_dependencies(setPyobj_full py)
 
+add_executable(just_run just_run.cpp ${PROTO_SRCS} ${PROTO_HDRS})
+add_dependencies(just_run py)
