@@ -36,7 +36,8 @@ static bool printReqInfo(const std::string& key) {
     }
 
     // 打印 request 信息
-    fprintf(stdout, "Request name: %s\t GET %s:\n", request_name, key.c_str());
+    // fprintf(stdout, "Request name: %s\t GET %s:\n", request_name,
+    // key.c_str());
 
     return true;
 }
@@ -75,9 +76,9 @@ static PyObject* get_Pyobj(PyObject* self, PyObject* args) {
     PyObject* object = getPyobjFromContext(&it->second);
 
     // 输出获得的值
-    fprintf(stdout, "value: ");
-    PyObject_Print(object, stdout, Py_PRINT_RAW);
-    puts("");
+    // fprintf(stdout, "value: ");
+    // PyObject_Print(object, stdout, Py_PRINT_RAW);
+    // puts("");
 
     return object;
 }
@@ -138,13 +139,14 @@ class pythoncNamespace {
                          "[Error] Interpreter was stopped.\n");
             return;
         }
-
         if (pythoncNamespace::InterpreterState_ ==
             InterpreterState::UNINITIALIZED) {
-            PyImport_AppendInittab("pythonc", &PyInit_PythonC);
-            Py_Initialize();
-            pythoncNamespace::InterpreterState_ = InterpreterState::RUNNING;
+            fprintf(stderr, "[Error] Interpreter is uninitialized.\n");
+            PyErr_Format(PyExc_RuntimeError,
+                         "[Error] Interpreter is uninitialized.\n");
+            return;
         }
+
         global_ = PyDict_New();
         local_ = PyDict_New();
 
@@ -160,6 +162,22 @@ class pythoncNamespace {
         // global_ = nullptr;
         // local_ = nullptr;
     }
+
+    static void init_python() {
+        static std::mutex mtx;
+        std::lock_guard<std::mutex> lock(mtx);
+
+        if (pythoncNamespace::InterpreterState_ ==
+            InterpreterState::UNINITIALIZED) {
+            fprintf(stdout, "Initializing...\n");
+            PyImport_AppendInittab("pythonc", &PyInit_PythonC);
+            Py_Initialize();
+            pythoncNamespace::InterpreterState_ = InterpreterState::RUNNING;
+        } else {
+            fprintf(stderr, "Already initialized!\n");
+        }
+    }
+
     enum InterpreterState { UNINITIALIZED = 0, RUNNING = 1, STOPPED = 2 };
     int getInterpreterState() const noexcept {
         return pythoncNamespace::InterpreterState_;
@@ -266,27 +284,28 @@ bool call_python(
 
     /*执行，获取返回结果*/
     {
+        PyGILState_STATE gstate = PyGILState_Ensure();
+
         PyObject* result =
             PyEval_EvalCode(code, space.getGlobal(), space.getLocal());
+
         if (result == nullptr || PyErr_Occurred()) {
-            // Retrieve the exception information
             PyObject *pType, *pValue, *pTraceback;
             PyErr_Fetch(&pType, &pValue, &pTraceback);
 
-            // Convert the exception to a string
             PyObject* pStr = PyObject_Str(pValue);
             const char* errorMsg = PyUnicode_AsUTF8(pStr);
 
-            // Output the error message
             std::cerr << "Python error: " << errorMsg << std::endl;
 
-            // Cleanup
             Py_XDECREF(pStr);
             Py_XDECREF(pType);
             Py_XDECREF(pValue);
             Py_XDECREF(pTraceback);
+            PyGILState_Release(gstate);
             return false;
         }
+        PyGILState_Release(gstate);
         Py_XDECREF(result);
     }
 
@@ -294,13 +313,16 @@ bool call_python(
 }
 
 PyObject* compile_python(const std::string& script, const std::string& name) {
-    if (pythoncNamespace::InterpreterState_ ==
-        pythoncNamespace::UNINITIALIZED) {
-        pythoncNamespace();
-    }
+    fprintf(stdout, "getting... PyEval_ThreadsInitialized()=%d\n",
+            PyEval_ThreadsInitialized());
+    PyGILState_STATE gstate = PyGILState_Ensure();
+    fprintf(stdout, "locked\n");
     PyObject* code =
         Py_CompileStringExFlags(script.c_str(), name.c_str(), Py_file_input,
                                 nullptr, 2);  // 2 是优化标签
+    PyGILState_Release(gstate);
+    fprintf(stdout, "released\n");
+
     if (code == nullptr) {
         std::cout << "Error Compiling String" << std::endl;
         return nullptr;

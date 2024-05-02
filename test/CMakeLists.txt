@@ -31,6 +31,6 @@ add_dependencies(map_namespace py)
 add_executable(nosuchkey nosuchkey.cpp ${PROTO_SRCS} ${PROTO_HDRS})
 add_dependencies(nosuchkey py)
 
-# add_executable(just_run just_run.cpp ${PROTO_SRCS} ${PROTO_HDRS})
-# add_dependencies(just_run py)
+add_executable(multithread multithread.cpp ${PROTO_SRCS} ${PROTO_HDRS})
+add_dependencies(multithread py)
 
