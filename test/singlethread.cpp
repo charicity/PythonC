@@ -21,15 +21,10 @@ void process1to1000000(MatchRuleReq &maps) {
 
 int main() {
     pythoncNamespace::init_python();
-    MatchRuleReq maps1, maps2;
+    MatchRuleReq maps1;
     (*maps1.mutable_context_map())["val"].set_int32(0);
-    (*maps2.mutable_context_map())["val"].set_int32(0);
 
-    std::thread t1(process1to1000000, std::ref(maps1));
-    std::thread t2(process1to1000000, std::ref(maps2));
-
-    t1.join();
-    t2.join();
+    process1to1000000(maps1);
 
     fprintf(stdout, "im done\n");
 

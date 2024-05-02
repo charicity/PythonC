@@ -34,3 +34,5 @@ add_dependencies(nosuchkey py)
 add_executable(multithread multithread.cpp ${PROTO_SRCS} ${PROTO_HDRS})
 add_dependencies(multithread py)
 
+add_executable(singlethread singlethread.cpp ${PROTO_SRCS} ${PROTO_HDRS})
+add_dependencies(singlethread py)

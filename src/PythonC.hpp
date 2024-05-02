@@ -36,8 +36,7 @@ static bool printReqInfo(const std::string& key) {
     }
 
     // 打印 request 信息
-    // fprintf(stdout, "Request name: %s\t GET %s:\n", request_name,
-    // key.c_str());
+    fprintf(stdout, "Request name: %s\t GET %s:\n", request_name, key.c_str());
 
     return true;
 }
@@ -76,9 +75,9 @@ static PyObject* get_Pyobj(PyObject* self, PyObject* args) {
     PyObject* object = getPyobjFromContext(&it->second);
 
     // 输出获得的值
-    // fprintf(stdout, "value: ");
-    // PyObject_Print(object, stdout, Py_PRINT_RAW);
-    // puts("");
+    fprintf(stdout, "value: ");
+    PyObject_Print(object, stdout, Py_PRINT_RAW);
+    puts("");
 
     return object;
 }
@@ -109,7 +108,7 @@ static PyObject* set_Pyobj(PyObject* self, PyObject* args) {
 }
 
 /*接口区*/
-
+std::mutex mtx;
 // 定义方法
 static PyMethodDef PythonCMethods[] = {
     {"get_Pyobj", get_Pyobj, METH_VARARGS, "Get pyobj from C++ host by name"},
@@ -127,12 +126,16 @@ class pythoncNamespace {
    private:
     PyObject* global_;
     PyObject* local_;
+    // PyThreadState* myInterpreter = nullptr;
 
    public:
     static int InterpreterState_;
     // 存放 "__PythonC_MatchRuleReq__" 这个值对应的 python str 类型的对象
     // 随着解释器的释放创建而创建、释放而释放
     pythoncNamespace() {
+        // myInterpreter = Py_NewInterpreter();
+        // 已经有已导入的 mypythonc 模块，未经验证
+
         if (pythoncNamespace::InterpreterState_ == InterpreterState::STOPPED) {
             fprintf(stderr, "[Error] Interpreter was stopped.\n");
             PyErr_Format(PyExc_RuntimeError,
@@ -147,6 +150,11 @@ class pythoncNamespace {
             return;
         }
 
+        // if (myInterpreter == nullptr) {
+        //     fprintf(stderr, "[Error] failed to get Py_NewInterpreter.\n");
+        //     return;
+        // }
+
         global_ = PyDict_New();
         local_ = PyDict_New();
 
@@ -157,19 +165,19 @@ class pythoncNamespace {
         }
     }
     ~pythoncNamespace() {
-        Py_DECREF(global_);
-        Py_DECREF(local_);
+        // if (myInterpreter) Py_EndInterpreter(myInterpreter);
+        if (global_) Py_DECREF(global_);
+        if (local_) Py_DECREF(local_);
         // global_ = nullptr;
         // local_ = nullptr;
+        // myInterpreter = nullptr;
     }
 
     static void init_python() {
-        static std::mutex mtx;
         std::lock_guard<std::mutex> lock(mtx);
 
         if (pythoncNamespace::InterpreterState_ ==
             InterpreterState::UNINITIALIZED) {
-            fprintf(stdout, "Initializing...\n");
             PyImport_AppendInittab("pythonc", &PyInit_PythonC);
             Py_Initialize();
             pythoncNamespace::InterpreterState_ = InterpreterState::RUNNING;
@@ -186,6 +194,7 @@ class pythoncNamespace {
     PyObject* getLocal() { return local_; }
 
     static void shutdownInterpreter() {
+        std::lock_guard<std::mutex> lock(mtx);
         pythoncNamespace::InterpreterState_ = InterpreterState::STOPPED;
         Py_Finalize();
     }
@@ -215,6 +224,7 @@ bool call_python(
     PyObject* code, MatchRuleReq& maps, const std::string& ReqInfo,
     pythoncNamespace space = pythoncNamespace(),
     const std::vector<std::string>& modules = std::vector<std::string>()) {
+    std::lock_guard<std::mutex> lg(mtx);
     /*将 maps 放在 global 中*/
     {
         PyObject* tmpptr = PyCapsule_New(&maps, nullptr, nullptr);
@@ -284,7 +294,7 @@ bool call_python(
 
     /*执行，获取返回结果*/
     {
-        PyGILState_STATE gstate = PyGILState_Ensure();
+        // PyGILState_STATE gstate = PyGILState_Ensure();
 
         PyObject* result =
             PyEval_EvalCode(code, space.getGlobal(), space.getLocal());
@@ -296,16 +306,16 @@ bool call_python(
             PyObject* pStr = PyObject_Str(pValue);
             const char* errorMsg = PyUnicode_AsUTF8(pStr);
 
-            std::cerr << "Python error: " << errorMsg << std::endl;
+            fprintf(stderr, "Python error: %s\n", errorMsg);
 
             Py_XDECREF(pStr);
             Py_XDECREF(pType);
             Py_XDECREF(pValue);
             Py_XDECREF(pTraceback);
-            PyGILState_Release(gstate);
+            // PyGILState_Release(gstate);
             return false;
         }
-        PyGILState_Release(gstate);
+        // PyGILState_Release(gstate);
         Py_XDECREF(result);
     }
 
@@ -313,18 +323,15 @@ bool call_python(
 }
 
 PyObject* compile_python(const std::string& script, const std::string& name) {
-    fprintf(stdout, "getting... PyEval_ThreadsInitialized()=%d\n",
-            PyEval_ThreadsInitialized());
-    PyGILState_STATE gstate = PyGILState_Ensure();
-    fprintf(stdout, "locked\n");
-    PyObject* code =
-        Py_CompileStringExFlags(script.c_str(), name.c_str(), Py_file_input,
-                                nullptr, 2);  // 2 是优化标签
-    PyGILState_Release(gstate);
-    fprintf(stdout, "released\n");
+    PyObject* code = nullptr;
+    {
+        std::lock_guard<std::mutex> lg(mtx);
+        code = Py_CompileString(script.c_str(), name.c_str(),
+                                Py_file_input);  // 2 是优化标签
+    }
 
     if (code == nullptr) {
-        std::cout << "Error Compiling String" << std::endl;
+        fprintf(stderr, "[ERROR] Failed to compiling in %s().\n", __FUNCTION__);
         return nullptr;
     }
 
