@@ -9,6 +9,7 @@ link_libraries(${PYTHON_LIBRARIES})
 link_libraries(${PROTOBUF_LIBRARIES})
 
 #####################
+add_definitions("-g")
 
 add_custom_target( py
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/*.py ${CMAKE_CURRENT_BINARY_DIR}

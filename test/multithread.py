@@ -1,6 +1,6 @@
 k = 0
 print()
-for i in range(1, 1000000, 1):
+for i in range(1, 1000, 1):
     # k = i # filler
     # print(i)
     k = pythonc.get_Pyobj("val")

@@ -108,8 +108,16 @@ static PyObject* set_Pyobj(PyObject* self, PyObject* args) {
 }
 
 /*接口区*/
-std::mutex mtx;  // 保证 GIL 归属，原生 cpython 的方法在我这里跑不通...
-// 看看有没有这个需求，有的话就继续封装一下，目前只是示例
+
+class PyThreadManager {
+   public:
+    PyThreadManager() { state = PyGILState_Ensure(); }
+
+    ~PyThreadManager() { PyGILState_Release(state); }
+
+   private:
+    PyGILState_STATE state;
+};
 
 // 定义方法
 static PyMethodDef PythonCMethods[] = {
@@ -134,9 +142,11 @@ class pythoncNamespace {
     static int InterpreterState_;
     // 存放 "__PythonC_MatchRuleReq__" 这个值对应的 python str 类型的对象
     // 随着解释器的释放创建而创建、释放而释放
+
     pythoncNamespace() {
         // myInterpreter = Py_NewInterpreter();
         // 已经有已导入的 mypythonc 模块，未经验证
+        PyThreadManager lock;
 
         if (pythoncNamespace::InterpreterState_ == InterpreterState::STOPPED) {
             fprintf(stderr, "[Error] Interpreter was stopped.\n");
@@ -167,6 +177,7 @@ class pythoncNamespace {
         }
     }
     ~pythoncNamespace() {
+        PyThreadManager lock;
         // if (myInterpreter) Py_EndInterpreter(myInterpreter);
         if (global_) Py_DECREF(global_);
         if (local_) Py_DECREF(local_);
@@ -176,15 +187,20 @@ class pythoncNamespace {
     }
 
     static void init_python() {
-        std::lock_guard<std::mutex> lock(mtx);
+        static std::mutex mtx;
+        std::lock_guard<std::mutex> lg(mtx);
 
         if (pythoncNamespace::InterpreterState_ ==
             InterpreterState::UNINITIALIZED) {
+            fprintf(stderr, "Initializing...\n");
             PyImport_AppendInittab("pythonc", &PyInit_PythonC);
             Py_Initialize();
             pythoncNamespace::InterpreterState_ = InterpreterState::RUNNING;
+
+            PyEval_ReleaseThread(PyThreadState_Get());
         } else {
             fprintf(stderr, "Already initialized!\n");
+            // 多线程可能来到这里，尽管推荐在主进程中直接调用一次
         }
     }
 
@@ -196,9 +212,11 @@ class pythoncNamespace {
     PyObject* getLocal() { return local_; }
 
     static void shutdownInterpreter() {
-        std::lock_guard<std::mutex> lock(mtx);
+        /*要注意这里不能 PyThreadManager QAQ*/
         pythoncNamespace::InterpreterState_ = InterpreterState::STOPPED;
+        auto state = PyGILState_Ensure();
         Py_Finalize();
+        // 看起来 state 不需要被管
     }
 };
 int pythoncNamespace::InterpreterState_ =
@@ -226,7 +244,7 @@ bool call_python(
     PyObject* code, MatchRuleReq& maps, const std::string& ReqInfo,
     pythoncNamespace space = pythoncNamespace(),
     const std::vector<std::string>& modules = std::vector<std::string>()) {
-    std::lock_guard<std::mutex> lg(mtx);
+    PyThreadManager lock;
     /*将 maps 放在 global 中*/
     {
         PyObject* tmpptr = PyCapsule_New(&maps, nullptr, nullptr);
@@ -327,7 +345,9 @@ bool call_python(
 PyObject* compile_python(const std::string& script, const std::string& name) {
     PyObject* code = nullptr;
     {
-        std::lock_guard<std::mutex> lg(mtx);
+        fprintf(stdout, "Try lock...\n");
+        PyThreadManager lock;
+        fprintf(stdout, "Compiling...\n");
         code = Py_CompileString(script.c_str(), name.c_str(),
                                 Py_file_input);  // 2 是优化标签
     }
@@ -352,7 +372,7 @@ void currentRunSingle(const std::string& path) {
 
     tmpPlaceAllTypes(tmp1);
 
-    // pythoncNamespace();
+    // ;
 
     auto com = compile_python(script2, "script2");
     call_python(com, tmp1, "tmp", pythoncNamespace(), v);
