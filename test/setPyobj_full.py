@@ -13,7 +13,7 @@ def test_set_then_get(val, strs):
     pythonc.set_Pyobj(val,strs)
     obj = pythonc.get_Pyobj(strs)
     
-    print('ref count=',sys.getrefcount(obj))
+    # print('ref count=',sys.getrefcount(obj))
 
 
 

@@ -16,7 +16,7 @@ def test_getPyobj(strs):
     obj = pythonc.get_Pyobj(strs)
     # obj = 1
     
-    print('ref count=',sys.getrefcount(obj))
+    # print('ref count=',sys.getrefcount(obj))
     print('type=',type(obj))
     print('-------------')
 

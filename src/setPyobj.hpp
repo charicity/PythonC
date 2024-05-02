@@ -51,7 +51,7 @@ static bool setPyobjByLong(PyObject* object, context_value* site) {
         long long val = PyLong_AsLongLongAndOverflow(object, &overflow);
         if (!overflow) {
             site->set_int64(val);
-            return false;
+            return true;
         }
     }
 
@@ -169,8 +169,8 @@ bool setFromPyObj(PyObject* object, context_value* context) {
     if (type == &PyBool_Type) {
         return setPyobjByBool(object, context);
     } else if (type == &PyLong_Type) {
-        return setPyobjByLong(object, context);
         // 数据类型可以优化
+        return setPyobjByLong(object, context);
     } else if (type == &PyBytes_Type) {
         // 二进制安全可以加上？
         return setPyobjByBytes(object, context);

@@ -1,9 +1,4 @@
 #pragma once
-/*
-to do list:
-long类型编码
-优化逻辑？
-*/
 #include <assert.h>
 
 #include "data.pb.h"
