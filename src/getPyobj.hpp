@@ -4,37 +4,29 @@
 
 #include "data.pb.h"
 
-#define detectNullNewObject(object)                                        \
-    if (object == nullptr) {                                               \
-        fprintf(stderr, "[Error] Failed to create a new object in %s()\n", \
-                __FUNCTION__);                                             \
-        PyErr_SetString(                                                   \
-            PyExc_RuntimeError,                                            \
-            "[Error] Failed to create a new tempal object when getting."); \
-        return nullptr;                                                    \
+#define setErrorCombo(s)              \
+    fprintf(stderr, s, __FUNCTION__); \
+    PyErr_Format(PyExc_RuntimeError, s, __FUNCTION__)
+
+#define detectNullNewObject(object)                                       \
+    if (object == nullptr) {                                              \
+        setErrorCombo("[Error] Failed to create a new object in %s()\n"); \
+        return nullptr;                                                   \
     }
 
-#define detectNullNewSubobject(father, object)                             \
-    if (object == nullptr) {                                               \
-        fprintf(stderr, "[Error] Failed to create a new object in %s()\n", \
-                __FUNCTION__);                                             \
-        PyErr_SetString(                                                   \
-            PyExc_RuntimeError,                                            \
-            "[Error] Failed to create a new tempal object when getting."); \
-        Py_DECREF(father);                                                 \
-        return nullptr;                                                    \
+#define detectNullNewSubobject(father, object)                            \
+    if (object == nullptr) {                                              \
+        setErrorCombo("[Error] Failed to create a new object in %s()\n"); \
+        Py_DECREF(father);                                                \
+        return nullptr;                                                   \
     }
 
-#define detectNullNewSubobject_2father(father1, father2, object)           \
-    if (object == nullptr) {                                               \
-        fprintf(stderr, "[Error] Failed to create a new object in %s()\n", \
-                __FUNCTION__);                                             \
-        PyErr_SetString(                                                   \
-            PyExc_RuntimeError,                                            \
-            "[Error] Failed to create a new tempal object when getting."); \
-        Py_DECREF(father1);                                                \
-        Py_DECREF(father2);                                                \
-        return nullptr;                                                    \
+#define detectNullNewSubobject_2father(father1, father2, object)          \
+    if (object == nullptr) {                                              \
+        setErrorCombo("[Error] Failed to create a new object in %s()\n"); \
+        Py_DECREF(father1);                                               \
+        Py_DECREF(father2);                                               \
+        return nullptr;                                                   \
     }
 
 static PyObject* getPyobjFromArrayInt64(const ArrayInt64* arrayInt64) {

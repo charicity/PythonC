@@ -10,6 +10,10 @@ long类型编码
 #include "getPyobj.hpp"
 #include "setPyobj.hpp"
 
+#define setErrorCombo(s)              \
+    fprintf(stderr, s, __FUNCTION__); \
+    PyErr_Format(PyExc_RuntimeError, s, __FUNCTION__)
+
 // 它会管理解释器的运行和结束
 // 用户自行 Py_Finalize() 可能会造成问题
 
@@ -20,61 +24,63 @@ static bool printReqInfo(const std::string& key) {
         PyDict_GetItemString(global_dict, "__ReqInfo__");  // 借入引用
 
     if (item == nullptr) {
-        fprintf(stderr, "[Error] __ReqInfo__ is not existed.\n");
-        PyErr_SetString(PyExc_RuntimeError,
-                        "[Error] __ReqInfo__ is not existed.");
+        setErrorCombo("[Error] __ReqInfo__ is not existed in %s().\n");
         return false;
     }
     if (!PyUnicode_Check(item)) {
-        fprintf(stderr, "[Error] __ReqInfo__ is not a str type.\n");
-        PyErr_SetString(PyExc_RuntimeError,
-                        "[Error] __ReqInfo__ is not a str type.");
+        setErrorCombo("[Error] __ReqInfo__ is not a str type in %s().\n");
         return false;
     }
 
-    char* c = nullptr;
-    PyArg_Parse(item, "s", &c);
-    fprintf(stdout, "Request name: %s\t GET %s:\n", c, key.c_str());
+    char* request_name = nullptr;
+
+    // 官方说可以用 PyArg_Parse ，但是这个接口比较老
+    if (!PyArg_Parse(item, "s", &request_name)) {
+        setErrorCombo("[Error] Failed to parse __ReqInfo__ in %s().\n");
+        return false;
+    }
+
+    // 打印 request 信息
+    fprintf(stdout, "Request name: %s\t GET %s:\n", request_name, key.c_str());
 
     return true;
 }
 
 // python 调用 get_pyobj(name) ，返回 PyObject
 static PyObject* get_Pyobj(PyObject* self, PyObject* args) {
-    char* str;
-
-    if (!PyArg_ParseTuple(args, "s", &str)) {
-        std::cerr << "[Error] Failed to parse arguments in get_Pyobj()."
-                  << std::endl;
-        std::cerr << "[INFO] Usage: get_Pyobj(key_name)." << std::endl;
-        PyErr_SetString(PyExc_RuntimeError,
-                        "[Error] Failed to parse arguments in get_Pyobj().");
+    char* key_str;
+    if (!PyArg_ParseTuple(args, "s", &key_str)) {
+        setErrorCombo("[Error] Failed to parse key in %s().\n");
+        fprintf(stderr, "[INFO] Usage: get_Pyobj(key_str).\n");
 
         return nullptr;  // let it crash
     }
+    std::string key_string = key_str;
 
-    std::string key = str;
-
-    if (!printReqInfo(key)) {
+    if (!printReqInfo(key_string)) {
+        // error log 已经在 printReqInfo 中被打印了
         return nullptr;  // let it crash
     }
 
     MatchRuleReq* fetch = getMaps();
     if (fetch == nullptr) {
-        std::cerr << "[Error] __MatchRuleReq__ is not existed." << std::endl;
-        PyErr_SetString(PyExc_RuntimeError,
-                        "[Error] __MatchRuleReq__ is not existed.");
+        setErrorCombo("[Error] __MatchRuleReq__ is not existed in %s().\n");
         return nullptr;
     }
 
-    auto& map_ref = (*fetch->mutable_context_map());
-    auto it = map_ref.find(key);
+    auto& map_ref = (*fetch->mutable_context_map());  // 这个不会有错了...
+    auto it = map_ref.find(key_string);
     if (it == map_ref.end()) {
-        return Py_None;  // maybemaybemaybemaybe
+        fprintf(stdout,
+                "[INFO] Tried to get a not existing key, returns "
+                "PY_NONE.\n");
+        return Py_None;
     }
 
     PyObject* object = getPyobjFromContext(&it->second);
-    printf("value: ");
+
+    // 输出获得的值
+    fprintf(stdout, "value: ");
     PyObject_Print(object, stdout, Py_PRINT_RAW);
     puts("");
 
@@ -85,7 +91,9 @@ static PyObject* get_Pyobj(PyObject* self, PyObject* args) {
 static PyObject* set_Pyobj(PyObject* self, PyObject* args) {
     char* str;
     PyObject* object = nullptr;
-    if (!PyArg_ParseTuple(args, "Os", &object, &str) || object == nullptr) {
+    if (!PyArg_ParseTuple(args, "Os", &object, &str)) {
+        setErrorCombo("[Error] Failed to parse arguments in %s().\n");
+        fprintf(stderr, "[INFO] Usage: set_Pyobj(py_val, key_str).\n");
         return nullptr;
     }
     std::string key = str;
@@ -93,7 +101,7 @@ static PyObject* set_Pyobj(PyObject* self, PyObject* args) {
 
     MatchRuleReq* fetch = getMaps();
     if (fetch == nullptr) {
-        std::cerr << "fetch = null when " << key << std::endl;
+        setErrorCombo("[Error] __MatchRuleReq__ is not existed in %s().\n");
         return nullptr;
     }
 
@@ -130,7 +138,9 @@ class pythoncNamespace {
     // 随着解释器的释放创建而创建、释放而释放
     pythoncNamespace() {
         if (pythoncNamespace::InterpreterState_ == InterpreterState::STOPPED) {
-            std::cerr << "[Error] Interpreter was stopped." << std::endl;
+            fprintf(stderr, "[Error] Interpreter was stopped.\n");
+            PyErr_Format(PyExc_RuntimeError,
+                         "[Error] Interpreter was stopped.\n");
             return;
         }
 
@@ -142,6 +152,12 @@ class pythoncNamespace {
         }
         global_ = PyDict_New();
         local_ = PyDict_New();
+
+        if (global_ == nullptr || local_ == nullptr) {
+            setErrorCombo(
+                "[Error] Failed to initialize globals() or locals() in "
+                "%s().\n");
+        }
     }
     ~pythoncNamespace() {
         Py_DECREF(global_);
@@ -169,18 +185,13 @@ static MatchRuleReq* getMaps() {
     PyObject* item = PyDict_GetItemString(
         global_dict, "__MatchRuleReq__");  // 这也是个借入的引用
 
-    if (item == nullptr) {
-        std::cerr << "Failed to get MatchRuleReq* in globals()" << std::endl;
-        PyErr_SetString(PyExc_RuntimeError,
-                        "Failed to get MatchRuleReq* in globals()");
+    if (item == nullptr || global_dict == nullptr) {
+        setErrorCombo("[ERROR] Failed to get __MatchRuleReq__ in %s().\n");
         return nullptr;
     }
 
     if (!PyCapsule_CheckExact(item)) {
-        std::cerr << "__MatchRuleReq__ in globals() is not a capsule"
-                  << std::endl;
-        PyErr_SetString(PyExc_RuntimeError,
-                        "__MatchRuleReq__ in globals() is not a capsule");
+        setErrorCombo("[ERROR] __MatchRuleReq__ is not a capsule in %s().\n");
         return nullptr;
     }
 
@@ -191,62 +202,99 @@ bool call_python(
     PyObject* code, MatchRuleReq& maps, const std::string& ReqInfo,
     pythoncNamespace space = pythoncNamespace(),
     const std::vector<std::string>& modules = std::vector<std::string>()) {
-    // PyRun_SimpleString(script.c_str());
-    // info 目前也没用上，主要是不知道是不是这个需求
-    // 如果是的话就在 globals() 里再塞上一个
+    /*将 maps 放在 global 中*/
+    {
+        PyObject* tmpptr = PyCapsule_New(&maps, nullptr, nullptr);
 
-    PyObject* tmpptr = PyCapsule_New(&maps, nullptr, nullptr);
-    // 还有判 nullptr 之类的~ 先验一下需求是否正确再做吧
-    int fetch =
-        PyDict_SetItemString(space.getGlobal(), "__MatchRuleReq__", tmpptr);
-    Py_DECREF(tmpptr);
+        if (tmpptr == NULL) {
+            setErrorCombo("[ERROR] Failed to create the capsule in %s().\n");
+            return false;
+        }
 
-    PyObject* tmpstr = PyUnicode_FromString(ReqInfo.c_str());
-    PyDict_SetItemString(space.getGlobal(), "__ReqInfo__", tmpstr);
-    Py_DECREF(tmpstr);
+        if (PyDict_SetItemString(space.getGlobal(), "__MatchRuleReq__",
+                                 tmpptr) == -1) {
+            setErrorCombo("[ERROR] Failed to set __MatchRuleReq__ in %s().\n");
+            Py_DECREF(tmpptr);
+            return false;
+        }
+        Py_DECREF(tmpptr);
 
-    for (auto& mod : modules) {
-        PyObject* current_module = PyImport_ImportModule(mod.c_str());
-        PyDict_SetItemString(space.getGlobal(), mod.c_str(),
-                             current_module);  // 需要异常处理
-        Py_DECREF(current_module);
+        //////////////////////
+
+        PyObject* tmpstr = PyUnicode_FromString(ReqInfo.c_str());
+        if (PyDict_SetItemString(space.getGlobal(), "__ReqInfo__", tmpstr) ==
+            -1) {
+            setErrorCombo("[ERROR] Failed to set __ReqInfo__ in %s().\n");
+            Py_DECREF(tmpstr);
+            return false;
+        }
+        Py_DECREF(tmpstr);
     }
 
-    PyObject* pythonc_module = PyImport_ImportModule("pythonc");
+    /*导入其它模块*/
+    {
+        for (auto& mod : modules) {
+            PyObject* current_module = PyImport_ImportModule(mod.c_str());
+            if (PyDict_SetItemString(space.getGlobal(), mod.c_str(),
+                                     current_module) == -1) {
+                fprintf(stderr, "[ERROR] Failed to import %s in %s().\n",
+                        mod.c_str(), __FUNCTION__);
 
-    PyDict_SetItemString(space.getGlobal(), "pythonc",
-                         pythonc_module);  // 需要异常处理
-    Py_DECREF(pythonc_module);
-
-    // 把 MatchRuleReq* 放在 globals 字典的 __PythonC_MatchRuleReq__ 键中
-
-    if (fetch == -1) {
-        std::cerr << "[Error] Failed to set item in global diction."
-                  << std::endl;
-        return false;
+                PyErr_Format(PyExc_RuntimeError,
+                             "[ERROR] Failed to import %s in %s().\n",
+                             mod.c_str(), __FUNCTION__);
+                Py_DECREF(current_module);
+                return false;
+            }
+            Py_DECREF(current_module);
+        }
     }
 
-    PyObject* result =
-        PyEval_EvalCode(code, space.getGlobal(), space.getLocal());
-    if (result == nullptr || PyErr_Occurred()) {
-        // Retrieve the exception information
-        PyObject *pType, *pValue, *pTraceback;
-        PyErr_Fetch(&pType, &pValue, &pTraceback);
+    /*导入pythonc模块*/
+    // 主要是为了和之前写的 testcases 兼容来着
+    {
+        PyObject* pythonc_module = PyImport_ImportModule("pythonc");
 
-        // Convert the exception to a string
-        PyObject* pStr = PyObject_Str(pValue);
-        const char* errorMsg = PyUnicode_AsUTF8(pStr);
+        if (PyDict_SetItemString(space.getGlobal(), "pythonc",
+                                 pythonc_module) == -1) {
+            fprintf(stderr, "[ERROR] Failed to import %s in %s().\n", "pythonc",
+                    __FUNCTION__);
 
-        // Output the error message
-        std::cerr << "Python error: " << errorMsg << std::endl;
-
-        // Cleanup
-        Py_XDECREF(pStr);
-        Py_XDECREF(pType);
-        Py_XDECREF(pValue);
-        Py_XDECREF(pTraceback);
+            PyErr_Format(PyExc_RuntimeError,
+                         "[ERROR] Failed to import %s in %s().\n", "pythonc",
+                         __FUNCTION__);
+            Py_DECREF(pythonc_module);
+            return false;
+        }
+        Py_DECREF(pythonc_module);
     }
-    Py_XDECREF(result);
+
+    /*执行，获取返回结果*/
+    {
+        PyObject* result =
+            PyEval_EvalCode(code, space.getGlobal(), space.getLocal());
+        if (result == nullptr || PyErr_Occurred()) {
+            // Retrieve the exception information
+            PyObject *pType, *pValue, *pTraceback;
+            PyErr_Fetch(&pType, &pValue, &pTraceback);
+
+            // Convert the exception to a string
+            PyObject* pStr = PyObject_Str(pValue);
+            const char* errorMsg = PyUnicode_AsUTF8(pStr);
+
+            // Output the error message
+            std::cerr << "Python error: " << errorMsg << std::endl;
+
+            // Cleanup
+            Py_XDECREF(pStr);
+            Py_XDECREF(pType);
+            Py_XDECREF(pValue);
+            Py_XDECREF(pTraceback);
+            return false;
+        }
+        Py_XDECREF(result);
+    }
+
     return true;
 }
 

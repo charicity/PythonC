@@ -5,6 +5,10 @@
 #include "data.pb.h"
 #include "dbg_utili.hpp"
 
+#define setErrorCombo(s)              \
+    fprintf(stderr, s, __FUNCTION__); \
+    PyErr_Format(PyExc_RuntimeError, s, __FUNCTION__)
+
 void setFromPyObj(PyObject* object, context_value* context);
 
 static bool isBasicType(PyObject* object) {
