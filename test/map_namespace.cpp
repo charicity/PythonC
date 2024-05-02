@@ -48,5 +48,7 @@ int main() {
     call_python(reveal, maps1, "noinfo");
     call_python(reveal, maps2, "noinfo");
     printf("---------------------------------------\n");
+
+    pythoncNamespace::shutdownInterpreter();
     return 0;
 }

@@ -4,14 +4,47 @@
 
 #include "data.pb.h"
 
+#define detectNullNewObject(object)                                        \
+    if (object == nullptr) {                                               \
+        fprintf(stderr, "[Error] Failed to create a new object in %s()\n", \
+                __FUNCTION__);                                             \
+        PyErr_SetString(                                                   \
+            PyExc_RuntimeError,                                            \
+            "[Error] Failed to create a new tempal object when getting."); \
+        return nullptr;                                                    \
+    }
+
+#define detectNullNewSubobject(father, object)                             \
+    if (object == nullptr) {                                               \
+        fprintf(stderr, "[Error] Failed to create a new object in %s()\n", \
+                __FUNCTION__);                                             \
+        PyErr_SetString(                                                   \
+            PyExc_RuntimeError,                                            \
+            "[Error] Failed to create a new tempal object when getting."); \
+        Py_DECREF(father);                                                 \
+        return nullptr;                                                    \
+    }
+
+#define detectNullNewSubobject_2father(father1, father2, object)           \
+    if (object == nullptr) {                                               \
+        fprintf(stderr, "[Error] Failed to create a new object in %s()\n", \
+                __FUNCTION__);                                             \
+        PyErr_SetString(                                                   \
+            PyExc_RuntimeError,                                            \
+            "[Error] Failed to create a new tempal object when getting."); \
+        Py_DECREF(father1);                                                \
+        Py_DECREF(father2);                                                \
+        return nullptr;                                                    \
+    }
+
 static PyObject* getPyobjFromArrayInt64(const ArrayInt64* arrayInt64) {
     PyObject* pyList = PyList_New(0);
+
+    detectNullNewObject(pyList);
+
     for (int i = 0; i < arrayInt64->data_size(); i++) {
         PyObject* pyValue = PyLong_FromLongLong(arrayInt64->data(i));
-        if (pyValue == nullptr) {
-            Py_DECREF(pyList);
-            return nullptr;
-        }
+        detectNullNewSubobject(pyList, pyValue);
 
         PyList_Append(pyList, pyValue);
 
@@ -23,12 +56,12 @@ static PyObject* getPyobjFromArrayInt64(const ArrayInt64* arrayInt64) {
 
 static PyObject* getPyobjFromArrayUint64(const ArrayUint64* arrayUint64) {
     PyObject* pyList = PyList_New(0);
+
+    detectNullNewObject(pyList);
+
     for (int i = 0; i < arrayUint64->data_size(); i++) {
         PyObject* pyValue = PyLong_FromUnsignedLongLong(arrayUint64->data(i));
-        if (pyValue == nullptr) {
-            Py_DECREF(pyList);
-            return nullptr;
-        }
+        detectNullNewSubobject(pyList, pyValue);
 
         PyList_Append(pyList, pyValue);
 
@@ -40,12 +73,12 @@ static PyObject* getPyobjFromArrayUint64(const ArrayUint64* arrayUint64) {
 
 static PyObject* getPyobjFromArrayDouble(const ArrayDouble* arrayDouble) {
     PyObject* pyList = PyList_New(0);
+
+    detectNullNewObject(pyList);
+
     for (int i = 0; i < arrayDouble->data_size(); i++) {
         PyObject* pyValue = PyFloat_FromDouble(arrayDouble->data(i));
-        if (pyValue == nullptr) {
-            Py_DECREF(pyList);
-            return nullptr;
-        }
+        detectNullNewSubobject(pyList, pyValue);
 
         PyList_Append(pyList, pyValue);
 
@@ -57,12 +90,12 @@ static PyObject* getPyobjFromArrayDouble(const ArrayDouble* arrayDouble) {
 
 static PyObject* getPyobjFromArrayString(const ArrayString* arrayString) {
     PyObject* pyList = PyList_New(0);
+
+    detectNullNewObject(pyList);
+
     for (int i = 0; i < arrayString->data_size(); i++) {
         PyObject* pyValue = PyUnicode_FromString(arrayString->data(i).c_str());
-        if (pyValue == nullptr) {
-            Py_DECREF(pyList);
-            return nullptr;
-        }
+        detectNullNewSubobject(pyList, pyValue);
 
         PyList_Append(pyList, pyValue);
 
@@ -76,12 +109,12 @@ static PyObject* getPyobjFromContext(const context_value* value);
 
 static PyObject* getPyobjFromArrayValue(const ArrayValue* arrayValue) {
     PyObject* pyList = PyList_New(0);
+
+    detectNullNewObject(pyList);
+
     for (int i = 0; i < arrayValue->data_size(); i++) {
         PyObject* pyValue = getPyobjFromContext(&arrayValue->data(i));
-        if (pyValue == nullptr) {
-            Py_DECREF(pyList);
-            return nullptr;
-        }
+        detectNullNewSubobject(pyList, pyValue);
 
         PyList_Append(pyList, pyValue);
 
@@ -94,19 +127,14 @@ static PyObject* getPyobjFromArrayValue(const ArrayValue* arrayValue) {
 static PyObject* getPyobjFromMapString(const MapString* mapString) {
     PyObject* pyDict = PyDict_New();
 
+    detectNullNewObject(pyDict);
+
     for (const auto& pair : mapString->data()) {
         PyObject* pyKey = PyUnicode_FromString(pair.first.c_str());
-        if (pyKey == nullptr) {
-            Py_DECREF(pyDict);
-            return nullptr;
-        }
+        detectNullNewSubobject(pyDict, pyKey);
 
         PyObject* pyValue = getPyobjFromContext(&pair.second);
-        if (pyValue == nullptr) {
-            Py_DECREF(pyKey);
-            Py_DECREF(pyDict);
-            return nullptr;
-        }
+        detectNullNewSubobject_2father(pyDict, pyKey, pyValue);
 
         PyDict_SetItem(pyDict, pyKey, pyValue);
 
@@ -143,6 +171,7 @@ PyObject* getPyobjFromContext(const context_value* value) {
         }
         case value->kInt64: {
             // 我不知道为什么这个返回的 PyObject 引用计数是9...
+            // 现在又变成 4 了，怪
             // 文档上说没关系，那就没关系吧
             return Py_BuildValue("O&", PyLong_FromLongLong, value->int64());
         }
@@ -195,7 +224,10 @@ PyObject* getPyobjFromContext(const context_value* value) {
             return getPyobjFromMapString(&value->map_string());
         }
         default: {
-            std::cerr << "[Error] Unrecongizable Type!" << std::endl;
+            fprintf(stderr, "[Error] Unrecongizable type in %s().\n",
+                    __FUNCTION__);
+            fprintf(stderr, "[INFO] Only allows basic data type.\n");
+            PyErr_SetString(PyExc_RuntimeError, "[Error] Unrecongizable type.");
             break;
         }
     }

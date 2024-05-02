@@ -9,11 +9,11 @@
 
 int main() {
     PyObject *code1 =
-        compile_python("pythonc.get_Pyobj('notexist')", "namespace");
+        compile_python(load_file("./nosuchkey.py", true), "nokey");
     MatchRuleReq maps;
 
     call_python(code1, maps, "error");
 
-    printf("still running...?\n");
+    pythoncNamespace::shutdownInterpreter();
     return 0;
 }

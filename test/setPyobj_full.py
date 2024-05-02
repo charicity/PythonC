@@ -10,11 +10,9 @@ if '__MatchRuleReq__' not in globals():
 
 def test_set_then_get(val, strs):
     print('in call')
-    print('setting obj \'',strs,'\'',sep="")
     pythonc.set_Pyobj(val,strs)
-    print('getting obj \'',strs,'\'',sep="")
     obj = pythonc.get_Pyobj(strs)
-    print(obj)
+    
     print('ref count=',sys.getrefcount(obj))
 
 

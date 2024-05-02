@@ -10,5 +10,7 @@
 int main() {
     currentRunSingle("./getPyobj_full.py");
 
+    pythoncNamespace::shutdownInterpreter();
+
     return 0;
 }

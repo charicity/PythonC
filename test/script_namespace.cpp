@@ -34,5 +34,7 @@ int main() {
         call_python(code2, maps, "noinfo");
     }
     printf("---------------------------------------\n");
+
+    pythoncNamespace::shutdownInterpreter();
     return 0;
 }

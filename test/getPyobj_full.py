@@ -8,12 +8,14 @@ if 'pythonc' not in globals():
 if '__MatchRuleReq__' not in globals():
     print('__MatchRuleReq__ no')
 
+if '__ReqInfo__' not in globals():
+    print('__ReqInfo__ no')
+
 def test_getPyobj(strs):
     print('-------------')
-    print('getting obj \'',strs,'\'',sep="")
     obj = pythonc.get_Pyobj(strs)
     # obj = 1
-    print(obj)
+    
     print('ref count=',sys.getrefcount(obj))
     print('type=',type(obj))
     print('-------------')

@@ -7,6 +7,8 @@
 #include <iostream>
 #include <sstream>
 
+#include "PythonC.hpp"
+
 std::string convertToStdString(const char* c_str) {
     if (c_str == nullptr) {
         return "";  // 如果输入是空指针，则返回空字符串
