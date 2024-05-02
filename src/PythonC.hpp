@@ -108,7 +108,9 @@ static PyObject* set_Pyobj(PyObject* self, PyObject* args) {
 }
 
 /*接口区*/
-std::mutex mtx;
+std::mutex mtx;  // 保证 GIL 归属，原生 cpython 的方法在我这里跑不通...
+// 看看有没有这个需求，有的话就继续封装一下，目前只是示例
+
 // 定义方法
 static PyMethodDef PythonCMethods[] = {
     {"get_Pyobj", get_Pyobj, METH_VARARGS, "Get pyobj from C++ host by name"},
